@@ -36,60 +36,84 @@ function CardWaves() {
 interface Props {
   card: CryptoCardData
   className?: string
+  /** Minimalist single-tone bank style — no gradient, texture or waves. */
+  flat?: boolean
 }
 
-export default function CryptoCard({ card, className = '' }: Props) {
+const FLAT_COLOR = '#0d2847'
+
+export default function CryptoCard({ card, className = '', flat = false }: Props) {
   return (
     <div
       className={`relative aspect-[1.6/1] w-full shrink-0 select-none overflow-hidden rounded-[28px] p-6 transition-transform duration-200 ease-out active:scale-[0.97] active:-rotate-1 ${className}`}
-      style={{
-        backgroundImage: card.gradient,
-        boxShadow: `0 28px 55px -18px ${card.glowColor}, 0 10px 26px -10px rgba(2,4,30,0.65)`,
-      }}
+      style={
+        flat
+          ? {
+              backgroundColor: FLAT_COLOR,
+              boxShadow: '0 16px 34px -16px rgba(2,4,30,0.6), 0 6px 16px -8px rgba(2,4,30,0.5)',
+            }
+          : {
+              backgroundImage: card.gradient,
+              boxShadow: `0 28px 55px -18px ${card.glowColor}, 0 10px 26px -10px rgba(2,4,30,0.65)`,
+            }
+      }
     >
-      {/* dot-grid texture */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.16]"
-        style={{
-          backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1.5px)',
-          backgroundSize: '16px 16px',
-        }}
-      />
+      {!flat && (
+        <>
+          {/* dot-grid texture */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.16]"
+            style={{
+              backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1.5px)',
+              backgroundSize: '16px 16px',
+            }}
+          />
 
-      {/* geometric crosshatch (futuristic tech grid) */}
-      <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
-        style={{
-          backgroundImage:
-            'repeating-linear-gradient(45deg, rgba(255,255,255,0.7) 0px, rgba(255,255,255,0.7) 1px, transparent 1px, transparent 24px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.7) 0px, rgba(255,255,255,0.7) 1px, transparent 1px, transparent 24px)',
-        }}
-      />
+          {/* geometric crosshatch (futuristic tech grid) */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.08]"
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(45deg, rgba(255,255,255,0.7) 0px, rgba(255,255,255,0.7) 1px, transparent 1px, transparent 24px), repeating-linear-gradient(-45deg, rgba(255,255,255,0.7) 0px, rgba(255,255,255,0.7) 1px, transparent 1px, transparent 24px)',
+            }}
+          />
 
-      {/* water-depth wave layers */}
-      <CardWaves />
+          {/* water-depth wave layers */}
+          <CardWaves />
 
-      {/* pearl / holographic diagonal sheen (blue family, not rainbow) */}
-      <div
-        className="pointer-events-none absolute -inset-y-10 -inset-x-6 opacity-40 mix-blend-overlay"
-        style={{
-          backgroundImage:
-            'linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.55) 34%, rgba(144,224,239,0.6) 44%, rgba(72,202,228,0.5) 54%, transparent 70%)',
-        }}
-      />
+          {/* pearl / holographic diagonal sheen (blue family, not rainbow) */}
+          <div
+            className="pointer-events-none absolute -inset-y-10 -inset-x-6 opacity-40 mix-blend-overlay"
+            style={{
+              backgroundImage:
+                'linear-gradient(115deg, transparent 20%, rgba(255,255,255,0.55) 34%, rgba(144,224,239,0.6) 44%, rgba(94,212,236,0.5) 54%, transparent 70%)',
+            }}
+          />
 
-      {/* glass sheen top */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-white/5 to-transparent opacity-40" />
+          {/* glass sheen top */}
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/25 via-white/5 to-transparent opacity-40" />
 
-      {/* contrast-protection vignette for legible text */}
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#020318]/45 to-transparent" />
+          {/* contrast-protection vignette for legible text */}
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-[#020318]/45 to-transparent" />
+        </>
+      )}
+      {flat && (
+        <div
+          className="pointer-events-none absolute inset-0 opacity-[0.05]"
+          style={{
+            backgroundImage: 'radial-gradient(circle, rgba(255,255,255,0.9) 1px, transparent 1.5px)',
+            backgroundSize: '18px 18px',
+          }}
+        />
+      )}
 
       <div className="relative flex h-full flex-col justify-between text-white">
         <div className="flex items-start justify-between">
           <div>
             <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-white/75">Баланс</p>
-            <p className="mt-1 text-4xl font-extrabold tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)]">
+            <p className="mt-1 text-2xl font-extrabold tracking-tight drop-shadow-[0_1px_3px_rgba(0,0,0,0.35)]">
               {formatCoinAmount(card.currency, card.balance)}{' '}
-              <span className="text-lg font-semibold text-white/85">{card.currency}</span>
+              <span className="text-sm font-semibold text-white/85">{card.currency}</span>
             </p>
           </div>
           <CurrencyBadge currency={card.currency} />

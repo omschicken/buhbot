@@ -15,7 +15,7 @@ export default function CardRow({ card, active = false, hidden = false, onClick 
     <button
       onClick={onClick}
       className={`glass flex w-full items-center gap-3 rounded-2xl px-4 py-3.5 text-left transition-transform active:scale-[0.98] ${
-        active ? 'shadow-[0_0_0_1px_rgba(72,202,228,0.45),0_8px_24px_-10px_rgba(72,202,228,0.5)]' : ''
+        active ? 'shadow-[0_0_0_1px_rgba(94,212,236,0.45),0_8px_24px_-10px_rgba(94,212,236,0.5)]' : ''
       }`}
     >
       <CurrencyBadge currency={card.currency} size="sm" />

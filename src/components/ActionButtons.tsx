@@ -20,7 +20,7 @@ export default function ActionButtons({ onDeposit, onSend, onHistory }: Props) {
           key={item.label}
           onClick={item.onClick}
           style={{ animationDelay: `${i * 70}ms` }}
-          className="glass flex animate-fade-in flex-col items-center gap-2 rounded-2xl px-3 py-4 shadow-lg transition-transform active:scale-95"
+          className="glass flex animate-fade-in flex-col items-center gap-2 rounded-2xl px-3 py-4 transition-transform active:scale-95"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-full border border-accent/25 bg-accent/15 text-accent">
             <item.icon size={19} strokeWidth={2.1} />

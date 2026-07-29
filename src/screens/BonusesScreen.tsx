@@ -59,7 +59,7 @@ export default function BonusesScreen({ onShare }: Props) {
 
       <button
         onClick={onShare}
-        className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 text-base font-bold text-[#03045e] shadow-[0_10px_40px_-8px_rgba(72,202,228,0.6)] transition-transform active:scale-[0.98]"
+        className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-accent py-3.5 text-base font-bold text-[#10176e] shadow-[0_10px_40px_-8px_rgba(94,212,236,0.6)] transition-transform active:scale-[0.98]"
       >
         <Share2 size={17} /> Поделиться ссылкой
       </button>

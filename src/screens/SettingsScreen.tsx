@@ -12,7 +12,7 @@ export default function SettingsScreen() {
     <div className="px-4 pb-28 pt-6">
       <h1 className="mb-6 animate-fade-in text-2xl font-bold">Настройки</h1>
 
-      <div className="glass mb-6 flex animate-fade-in items-center gap-4 rounded-2xl p-4 shadow-lg">
+      <div className="glass mb-6 flex animate-fade-in items-center gap-4 rounded-2xl p-4">
         <div className="flex h-14 w-14 items-center justify-center rounded-full border border-accent/25 bg-accent/15 text-lg font-bold text-accent">
           AM
         </div>
@@ -27,7 +27,7 @@ export default function SettingsScreen() {
           <button
             key={label}
             style={{ animationDelay: `${i * 70}ms` }}
-            className="glass flex animate-fade-in items-center gap-3 rounded-2xl px-4 py-3.5 shadow-lg transition-transform active:scale-[0.98]"
+            className="glass flex animate-fade-in items-center gap-3 rounded-2xl px-4 py-3.5 transition-transform active:scale-[0.98]"
           >
             <span className="flex h-9 w-9 items-center justify-center rounded-full border border-accent/25 bg-accent/15 text-accent">
               <Icon size={18} />

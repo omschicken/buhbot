@@ -8,6 +8,8 @@ export interface CryptoCardData {
   holderName: string
   gradient: string
   glowColor: string
+  expiry: string
+  cvv: string
 }
 
 export type TransactionDirection = 'in' | 'out'
@@ -24,4 +26,4 @@ export interface Transaction {
 }
 
 export type Tab = 'home' | 'cards' | 'bonuses' | 'settings'
-export type SubScreen = 'deposit' | 'send' | 'history'
+export type SubScreen = 'deposit' | 'send' | 'history' | 'cardDetail'

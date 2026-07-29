@@ -14,6 +14,7 @@ interface Props {
   onHistory: () => void
   onViewAllCards: () => void
   onOpenBonuses: () => void
+  onOpenCard: () => void
 }
 
 export default function HomeScreen({
@@ -26,6 +27,7 @@ export default function HomeScreen({
   onHistory,
   onViewAllCards,
   onOpenBonuses,
+  onOpenCard,
 }: Props) {
   const total = cards.reduce((sum, c) => sum + c.balance * usdRates[c.currency], 0)
 
@@ -68,7 +70,15 @@ export default function HomeScreen({
       <div className="mt-6 flex flex-col gap-2.5">
         {cards.map((card, i) => (
           <div key={card.currency} style={{ animationDelay: `${i * 70}ms` }} className="animate-fade-in">
-            <CardRow card={card} active={i === activeIndex} hidden={balanceHidden} onClick={() => onChangeIndex(i)} />
+            <CardRow
+              card={card}
+              active={i === activeIndex}
+              hidden={balanceHidden}
+              onClick={() => {
+                onChangeIndex(i)
+                onOpenCard()
+              }}
+            />
           </div>
         ))}
       </div>

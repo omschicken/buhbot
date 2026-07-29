@@ -6,7 +6,7 @@ import type { Currency } from '../types'
 
 interface Props {
   onSelect: (index: number) => void
-  onNavigateHome: () => void
+  onOpenDetail: () => void
 }
 
 const GROUPS: { title: string; currencies: Currency[] }[] = [
@@ -14,7 +14,7 @@ const GROUPS: { title: string; currencies: Currency[] }[] = [
   { title: 'Криптовалюты', currencies: ['BTC', 'ETH'] },
 ]
 
-export default function CardsListScreen({ onSelect, onNavigateHome }: Props) {
+export default function CardsListScreen({ onSelect, onOpenDetail }: Props) {
   const total = cards.reduce((sum, c) => sum + c.balance * usdRates[c.currency], 0)
 
   return (
@@ -50,12 +50,12 @@ export default function CardsListScreen({ onSelect, onNavigateHome }: Props) {
                   key={card.currency}
                   onClick={() => {
                     onSelect(index)
-                    onNavigateHome()
+                    onOpenDetail()
                   }}
                   style={{ animationDelay: `${i * 90}ms` }}
                   className="animate-fade-in text-left"
                 >
-                  <CryptoCard card={card} />
+                  <CryptoCard card={card} flat />
                 </button>
               ))}
             </div>

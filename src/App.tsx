@@ -10,6 +10,7 @@ import TabBar from './components/TabBar'
 import BackgroundDecor from './components/BackgroundDecor'
 import HomeScreen from './screens/HomeScreen'
 import CardsListScreen from './screens/CardsListScreen'
+import CardDetailScreen from './screens/CardDetailScreen'
 import BonusesScreen from './screens/BonusesScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import DepositScreen from './screens/DepositScreen'
@@ -68,13 +69,26 @@ export default function App() {
               onHistory={() => setSubScreen('history')}
               onViewAllCards={() => setTab('cards')}
               onOpenBonuses={() => setTab('bonuses')}
+              onOpenCard={() => setSubScreen('cardDetail')}
             />
           )}
           {subScreen === null && tab === 'cards' && (
-            <CardsListScreen onSelect={setActiveCardIndex} onNavigateHome={() => setTab('home')} />
+            <CardsListScreen
+              onSelect={setActiveCardIndex}
+              onOpenDetail={() => setSubScreen('cardDetail')}
+            />
           )}
           {subScreen === null && tab === 'bonuses' && <BonusesScreen onShare={handleShare} />}
           {subScreen === null && tab === 'settings' && <SettingsScreen />}
+
+          {subScreen === 'cardDetail' && (
+            <CardDetailScreen
+              card={cards[activeCardIndex]}
+              onDeposit={() => setSubScreen('deposit')}
+              onSend={() => setSubScreen('send')}
+              onHistory={() => setSubScreen('history')}
+            />
+          )}
 
           {subScreen === 'deposit' && (
             <DepositScreen

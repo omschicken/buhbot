@@ -17,8 +17,12 @@ interface Props {
 export default function TabBar({ active, onChange }: Props) {
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-md animate-fade-in items-center justify-around border-t border-white/10 bg-[#081226]/75 px-2 pt-2 backdrop-blur-2xl"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)' }}
+      className="fixed inset-x-0 bottom-0 z-40 mx-auto flex w-full max-w-md animate-fade-in items-center justify-around border-t border-white/15 bg-[#0a1a30]/60 px-2 pt-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)] backdrop-blur-2xl"
+      style={{
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 10px)',
+        backdropFilter: 'blur(28px)',
+        WebkitBackdropFilter: 'blur(28px)',
+      }}
     >
       {TABS.map(({ id, label, icon: Icon }) => {
         const isActive = active === id
@@ -33,7 +37,7 @@ export default function TabBar({ active, onChange }: Props) {
           >
             <span
               className={`flex h-9 w-9 items-center justify-center rounded-xl transition-colors ${
-                isActive ? 'bg-accent/15 text-accent shadow-[0_0_16px_rgba(72,202,228,0.4)]' : 'text-white/45'
+                isActive ? 'bg-accent/15 text-accent shadow-[0_0_16px_rgba(94,212,236,0.4)]' : 'text-white/45'
               }`}
             >
               <Icon size={20} strokeWidth={isActive ? 2.4 : 2} />

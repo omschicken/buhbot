@@ -32,11 +32,15 @@ function StatusBadge({ status }: { status: Transaction['status'] }) {
 export default function HistoryScreen() {
   return (
     <div className="px-4 pb-8 pt-6">
-      <h1 className="mb-6 text-2xl font-bold">История транзакций</h1>
+      <h1 className="mb-6 animate-fade-in text-2xl font-bold">История транзакций</h1>
 
       <div className="flex flex-col gap-3">
-        {transactions.map((tx) => (
-          <div key={tx.id} className="flex items-center gap-3 rounded-2xl bg-surface p-3.5">
+        {transactions.map((tx, i) => (
+          <div
+            key={tx.id}
+            style={{ animationDelay: `${i * 40}ms` }}
+            className="glass flex animate-fade-in items-center gap-3 rounded-2xl p-3.5"
+          >
             <DirectionIcon direction={tx.direction} />
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-2">

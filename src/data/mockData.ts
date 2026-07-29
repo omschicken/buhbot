@@ -7,7 +7,9 @@ export const cards: CryptoCardData[] = [
     balance: 12480.52,
     cardNumberLast4: '4832',
     holderName: 'ALEX MORGAN',
-    gradient: 'from-[#00d4aa] via-[#00a884] to-[#0f766e]',
+    gradient:
+      'linear-gradient(135deg, #2dffc9 0%, #00d4aa 32%, #049e7c 68%, #073f34 100%)',
+    glowColor: 'rgba(0, 212, 170, 0.45)',
   },
   {
     currency: 'BTC',
@@ -15,7 +17,9 @@ export const cards: CryptoCardData[] = [
     balance: 0.2417,
     cardNumberLast4: '7719',
     holderName: 'ALEX MORGAN',
-    gradient: 'from-[#f7931a] via-[#c9700e] to-[#7c3f05]',
+    gradient:
+      'linear-gradient(135deg, #ffc266 0%, #f7931a 32%, #c9700e 68%, #522c04 100%)',
+    glowColor: 'rgba(247, 147, 26, 0.45)',
   },
   {
     currency: 'ETH',
@@ -23,9 +27,17 @@ export const cards: CryptoCardData[] = [
     balance: 3.842,
     cardNumberLast4: '2056',
     holderName: 'ALEX MORGAN',
-    gradient: 'from-[#8a7ff0] via-[#627eea] to-[#3b4ba8]',
+    gradient:
+      'linear-gradient(135deg, #beb3ff 0%, #8a7ff0 32%, #627eea 68%, #262c72 100%)',
+    glowColor: 'rgba(98, 126, 234, 0.45)',
   },
 ]
+
+export const usdRates: Record<CryptoCardData['currency'], number> = {
+  USDT: 1,
+  BTC: 65000,
+  ETH: 3400,
+}
 
 export const transactions: Transaction[] = [
   { id: 't1', direction: 'in', currency: 'USDT', amount: 500, date: '28 июля, 14:32', counterparty: 'Binance', status: 'completed' },

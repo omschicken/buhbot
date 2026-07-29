@@ -18,7 +18,7 @@ export default function DepositScreen({ initialCurrency, onDeposited }: Props) {
 
   return (
     <div className="px-4 pb-8 pt-6">
-      <h1 className="mb-6 text-2xl font-bold">Пополнить</h1>
+      <h1 className="mb-6 animate-fade-in text-2xl font-bold">Пополнить</h1>
 
       <p className="mb-2 text-sm font-medium text-white/60">Валюта</p>
       <div className="mb-6 grid grid-cols-3 gap-2">
@@ -30,7 +30,9 @@ export default function DepositScreen({ initialCurrency, onDeposited }: Props) {
               hapticSelection()
             }}
             className={`rounded-xl py-2.5 text-sm font-semibold transition-colors ${
-              currency === c ? 'bg-accent text-[#0b3b32]' : 'bg-surface text-white/70'
+              currency === c
+                ? 'bg-accent text-[#0b3b32] shadow-[0_0_20px_rgba(0,212,170,0.45)]'
+                : 'glass text-white/70'
             }`}
           >
             {c}
@@ -44,7 +46,7 @@ export default function DepositScreen({ initialCurrency, onDeposited }: Props) {
         value={amount}
         onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
         placeholder="0.00"
-        className="mb-4 w-full rounded-2xl bg-surface px-4 py-3.5 text-lg font-semibold text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-accent"
+        className="glass mb-4 w-full rounded-2xl px-4 py-3.5 text-lg font-semibold text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-accent"
       />
 
       <div className="mb-8 grid grid-cols-3 gap-2">
@@ -55,7 +57,7 @@ export default function DepositScreen({ initialCurrency, onDeposited }: Props) {
               setAmount(String(q))
               hapticSelection()
             }}
-            className="rounded-xl bg-surface py-2 text-sm font-medium text-white/70 active:scale-95 transition-transform"
+            className="glass rounded-xl py-2 text-sm font-medium text-white/70 transition-transform active:scale-95"
           >
             ${q}
           </button>
@@ -68,7 +70,7 @@ export default function DepositScreen({ initialCurrency, onDeposited }: Props) {
           hapticSuccess()
           onDeposited()
         }}
-        className="w-full rounded-2xl bg-accent py-3.5 text-base font-bold text-[#0b3b32] disabled:opacity-40 active:scale-[0.98] transition-transform"
+        className="w-full rounded-2xl bg-accent py-3.5 text-base font-bold text-[#0b3b32] shadow-[0_10px_40px_-8px_rgba(0,212,170,0.6)] transition-transform active:scale-[0.98] disabled:opacity-40"
       >
         Пополнить
       </button>

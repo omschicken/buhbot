@@ -7,6 +7,7 @@ export interface CryptoCardData {
   cardNumberLast4: string
   holderName: string
   gradient: string
+  glowColor: string
 }
 
 export type TransactionDirection = 'in' | 'out'
@@ -22,4 +23,5 @@ export interface Transaction {
   status: TransactionStatus
 }
 
-export type Screen = 'cards' | 'deposit' | 'send' | 'history'
+export type Tab = 'home' | 'cards' | 'settings'
+export type SubScreen = 'deposit' | 'send' | 'history'

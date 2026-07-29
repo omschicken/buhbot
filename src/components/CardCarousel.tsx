@@ -41,7 +41,7 @@ export default function CardCarousel({ cards, activeIndex, onChange }: Props) {
   return (
     <div className="w-full">
       <div
-        className="overflow-hidden"
+        className="overflow-hidden py-3"
         onTouchStart={onTouchStart}
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
@@ -54,7 +54,7 @@ export default function CardCarousel({ cards, activeIndex, onChange }: Props) {
           }}
         >
           {cards.map((card) => (
-            <div key={card.currency} className="w-full shrink-0 px-1">
+            <div key={card.currency} className="w-full shrink-0 animate-float px-3">
               <CryptoCard card={card} />
             </div>
           ))}
@@ -71,7 +71,7 @@ export default function CardCarousel({ cards, activeIndex, onChange }: Props) {
               hapticSelection()
             }}
             className={`h-2 rounded-full transition-all ${
-              i === activeIndex ? 'w-6 bg-accent' : 'w-2 bg-white/20'
+              i === activeIndex ? 'w-6 bg-accent shadow-[0_0_8px_rgba(0,212,170,0.7)]' : 'w-2 bg-white/20'
             }`}
           />
         ))}

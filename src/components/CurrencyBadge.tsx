@@ -1,28 +1,21 @@
-import type { ReactNode } from 'react'
-import { Bitcoin } from 'lucide-react'
 import type { Currency } from '../types'
 
-function EthGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2 L19 12.2 L12 16.2 L5 12.2 Z" fill="currentColor" opacity="0.95" />
-      <path d="M12 17.4 L19 13.4 L12 22 L5 13.4 Z" fill="currentColor" opacity="0.6" />
-    </svg>
-  )
-}
-
-function UsdtGlyph() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M4.5 5.5h15M12 5.5v6.2M7.5 15h9M12 11.7v9" />
-    </svg>
-  )
-}
-
-const ICONS: Record<Currency, ReactNode> = {
-  BTC: <Bitcoin size={17} strokeWidth={2.2} />,
-  ETH: <EthGlyph />,
-  USDT: <UsdtGlyph />,
+const BADGE: Record<Currency, { glyph: string; gradient: string; shadow: string }> = {
+  USDT: {
+    glyph: '₮',
+    gradient: 'linear-gradient(135deg, rgba(45,212,191,0.85), rgba(13,148,136,0.85))',
+    shadow: 'rgba(45, 212, 191, 0.45)',
+  },
+  BTC: {
+    glyph: '₿',
+    gradient: 'linear-gradient(135deg, rgba(251,191,36,0.85), rgba(217,119,6,0.85))',
+    shadow: 'rgba(251, 191, 36, 0.4)',
+  },
+  ETH: {
+    glyph: 'Ξ',
+    gradient: 'linear-gradient(135deg, rgba(203,213,225,0.85), rgba(139,127,240,0.85))',
+    shadow: 'rgba(167, 139, 250, 0.4)',
+  },
 }
 
 interface Props {
@@ -31,10 +24,19 @@ interface Props {
 }
 
 export default function CurrencyBadge({ currency, size = 'md' }: Props) {
-  const dimension = size === 'md' ? 'h-10 w-10' : 'h-8 w-8'
+  const style = BADGE[currency]
+  const dimension = size === 'md' ? 'h-11 w-11 text-lg' : 'h-8 w-8 text-sm'
+
   return (
-    <div className={`flex ${dimension} items-center justify-center rounded-full border border-white/40 bg-white/15 text-white shadow-[inset_0_1px_2px_rgba(255,255,255,0.4)] backdrop-blur`}>
-      {ICONS[currency]}
+    <div
+      className={`relative flex ${dimension} items-center justify-center rounded-full border border-white/50 font-bold text-white backdrop-blur-md`}
+      style={{
+        backgroundImage: style.gradient,
+        boxShadow: `0 4px 14px -2px ${style.shadow}, inset 0 1px 1px rgba(255,255,255,0.6)`,
+      }}
+    >
+      <span className="pointer-events-none absolute inset-[3px] rounded-full border border-white/30" />
+      <span className="relative drop-shadow-sm">{style.glyph}</span>
     </div>
   )
 }

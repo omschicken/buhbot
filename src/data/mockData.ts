@@ -8,8 +8,8 @@ export const cards: CryptoCardData[] = [
     cardNumberLast4: '4832',
     holderName: 'ALEX MORGAN',
     gradient:
-      'linear-gradient(135deg, #2dffc9 0%, #00d4aa 32%, #049e7c 68%, #073f34 100%)',
-    glowColor: 'rgba(0, 212, 170, 0.45)',
+      'linear-gradient(135deg, #03045e 0%, #0077b6 38%, #00b4d8 72%, #90e0ef 100%)',
+    glowColor: 'rgba(72, 202, 228, 0.45)',
   },
   {
     currency: 'BTC',
@@ -18,8 +18,8 @@ export const cards: CryptoCardData[] = [
     cardNumberLast4: '7719',
     holderName: 'ALEX MORGAN',
     gradient:
-      'linear-gradient(135deg, #ffc266 0%, #f7931a 32%, #c9700e 68%, #522c04 100%)',
-    glowColor: 'rgba(247, 147, 26, 0.45)',
+      'linear-gradient(135deg, #03045e 0%, #023e8a 38%, #0077b6 72%, #48cae4 100%)',
+    glowColor: 'rgba(247, 183, 51, 0.35)',
   },
   {
     currency: 'ETH',
@@ -28,8 +28,8 @@ export const cards: CryptoCardData[] = [
     cardNumberLast4: '2056',
     holderName: 'ALEX MORGAN',
     gradient:
-      'linear-gradient(135deg, #beb3ff 0%, #8a7ff0 32%, #627eea 68%, #262c72 100%)',
-    glowColor: 'rgba(98, 126, 234, 0.45)',
+      'linear-gradient(135deg, #03045e 0%, #0353a4 38%, #0096c7 72%, #ade8f4 100%)',
+    glowColor: 'rgba(157, 143, 224, 0.35)',
   },
 ]
 

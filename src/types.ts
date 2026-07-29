@@ -23,5 +23,5 @@ export interface Transaction {
   status: TransactionStatus
 }
 
-export type Tab = 'home' | 'cards' | 'settings'
+export type Tab = 'home' | 'cards' | 'bonuses' | 'settings'
 export type SubScreen = 'deposit' | 'send' | 'history'

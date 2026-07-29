@@ -13,8 +13,8 @@ export function useTelegramInit() {
   useEffect(() => {
     safe(() => WebApp.ready())
     safe(() => WebApp.expand())
-    safe(() => WebApp.setHeaderColor('#0a0a14'))
-    safe(() => WebApp.setBackgroundColor('#0a0a14'))
+    safe(() => WebApp.setHeaderColor('#0a1628'))
+    safe(() => WebApp.setBackgroundColor('#0a1628'))
   }, [])
 }
 

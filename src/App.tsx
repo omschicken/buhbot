@@ -8,8 +8,9 @@ import ScreenTransition from './components/ScreenTransition'
 import Toast from './components/Toast'
 import TabBar from './components/TabBar'
 import BackgroundDecor from './components/BackgroundDecor'
-import CardsScreen from './screens/CardsScreen'
+import HomeScreen from './screens/HomeScreen'
 import CardsListScreen from './screens/CardsListScreen'
+import BonusesScreen from './screens/BonusesScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import DepositScreen from './screens/DepositScreen'
 import SendScreen from './screens/SendScreen'
@@ -31,12 +32,18 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [subScreen, setSubScreen] = useState<SubScreen | null>(null)
   const [activeCardIndex, setActiveCardIndex] = useState(0)
+  const [balanceHidden, setBalanceHidden] = useState(false)
   const { message, showToast } = useToast()
 
   useTelegramInit()
 
   const closeSub = useCallback(() => setSubScreen(null), [])
   useTelegramBackButton(subScreen !== null, closeSub)
+
+  const handleShare = () => {
+    navigator.clipboard?.writeText('https://t.me/CryptoWalletBot?start=ref_AM4832').catch(() => {})
+    showToast('Ссылка скопирована')
+  }
 
   return (
     <div className="relative min-h-screen">
@@ -51,17 +58,22 @@ export default function App() {
 
         <ScreenTransition id={subScreen ?? tab}>
           {subScreen === null && tab === 'home' && (
-            <CardsScreen
+            <HomeScreen
               activeIndex={activeCardIndex}
               onChangeIndex={setActiveCardIndex}
+              balanceHidden={balanceHidden}
+              onToggleBalance={() => setBalanceHidden((v) => !v)}
               onDeposit={() => setSubScreen('deposit')}
               onSend={() => setSubScreen('send')}
               onHistory={() => setSubScreen('history')}
+              onViewAllCards={() => setTab('cards')}
+              onOpenBonuses={() => setTab('bonuses')}
             />
           )}
           {subScreen === null && tab === 'cards' && (
             <CardsListScreen onSelect={setActiveCardIndex} onNavigateHome={() => setTab('home')} />
           )}
+          {subScreen === null && tab === 'bonuses' && <BonusesScreen onShare={handleShare} />}
           {subScreen === null && tab === 'settings' && <SettingsScreen />}
 
           {subScreen === 'deposit' && (

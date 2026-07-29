@@ -41,7 +41,7 @@ export default function SendScreen({ currency, onSent }: Props) {
           hapticSuccess()
           onSent()
         }}
-        className="w-full rounded-2xl bg-accent py-3.5 text-base font-bold text-[#0b3b32] shadow-[0_10px_40px_-8px_rgba(0,212,170,0.6)] transition-transform active:scale-[0.98] disabled:opacity-40"
+        className="w-full rounded-2xl bg-accent py-3.5 text-base font-bold text-[#03045e] shadow-[0_10px_40px_-8px_rgba(72,202,228,0.6)] transition-transform active:scale-[0.98] disabled:opacity-40"
       >
         Подтвердить отправку
       </button>

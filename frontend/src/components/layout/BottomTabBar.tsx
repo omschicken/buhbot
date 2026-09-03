@@ -12,27 +12,34 @@ export default function BottomTabBar() {
   const loc = useLocation()
 
   return (
-    <nav className="mobile-only" style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, height: 60,
-      background: '#1a1a1a', borderTop: '1px solid #222', zIndex: 100,
-      display: 'none', gridTemplateColumns: 'repeat(5, 1fr)',
-      paddingBottom: 'env(safe-area-inset-bottom, 0)',
-    }}>
-      {TABS.map((tab) => {
-        const active = tab.to === '/'
-          ? loc.pathname === '/' && !loc.search
-          : loc.pathname === tab.to || (tab.to.includes('?') && loc.pathname === '/' && loc.search.includes('category'))
-        return (
-          <Link key={tab.to} to={tab.to} style={{
-            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            gap: 2, color: active ? '#e4a832' : '#555', transition: 'color 0.15s',
-            WebkitTapHighlightColor: 'transparent',
-          }}>
-            <span style={{ fontSize: 22, lineHeight: 1 }}>{tab.icon}</span>
-            <span style={{ fontSize: 9, fontWeight: 600 }}>{tab.label}</span>
-          </Link>
-        )
-      })}
-    </nav>
+    <>
+      <nav className="bottom-tab-bar" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0, height: 60,
+        background: '#1a1a1a', borderTop: '1px solid #222', zIndex: 100,
+        display: 'none', gridTemplateColumns: 'repeat(5, 1fr)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0)',
+      }}>
+        {TABS.map((tab) => {
+          const active = tab.to === '/'
+            ? loc.pathname === '/' && !loc.search
+            : loc.pathname === tab.to || (tab.to.includes('?') && loc.pathname === '/' && loc.search.includes('category'))
+          return (
+            <Link key={tab.to} to={tab.to} style={{
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+              gap: 3, color: active ? '#e4a832' : '#555', transition: 'color 0.15s',
+              textDecoration: 'none',
+            }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>{tab.icon}</span>
+              <span style={{ fontSize: 9, fontWeight: 600, letterSpacing: 0.3 }}>{tab.label}</span>
+            </Link>
+          )
+        })}
+      </nav>
+      <style>{`
+        @media (max-width: 768px) {
+          .bottom-tab-bar { display: grid !important; }
+        }
+      `}</style>
+    </>
   )
 }

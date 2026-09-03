@@ -25,7 +25,6 @@ html, body, #root {
   overflow-x: hidden;
 }
 
-body { cursor: none; }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: var(--bg3); }
@@ -34,19 +33,15 @@ body { cursor: none; }
 
 a { color: inherit; text-decoration: none; }
 
-button { cursor: none; border: none; background: none; font-family: var(--font); touch-action: manipulation; }
+button { cursor: pointer; border: none; background: none; font-family: var(--font); touch-action: manipulation; }
 
 input, select { font-family: var(--font); }
 
 @media (hover: none) {
-  body, button { cursor: auto; }
   .gcard { transform: none !important; }
 }
 
 @media (max-width: 768px) {
-  body { cursor: auto; }
-  button { cursor: pointer; }
-
   .hide-mobile { display: none !important; }
   .mobile-only { display: flex !important; }
 }

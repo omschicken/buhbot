@@ -81,7 +81,7 @@ export default function Navbar() {
         height: 54, display: 'flex', alignItems: 'center', padding: '0 20px', gap: 24,
       }}>
         <Link to="/" style={{ fontWeight: 900, fontSize: 17, letterSpacing: -0.5, flexShrink: 0 }}>
-          <span style={{ color: '#fff' }}>ROO</span><span style={{ color: '#e4a832' }}>BET</span>
+          <span style={{ color: '#fff' }}>APEX</span><span style={{ color: '#e4a832' }}>GAME</span>
         </Link>
 
         <div className="nav-links" style={{ display: 'flex', gap: 4, flex: 1 }}>

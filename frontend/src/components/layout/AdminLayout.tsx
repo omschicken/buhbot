@@ -22,7 +22,7 @@ export default function AdminLayout() {
     <>
       <div style={{ padding: '20px 16px', borderBottom: '1px solid #1e1e1e' }}>
         <div style={{ fontSize: 16, fontWeight: 900 }}>
-          <span style={{ color: '#fff' }}>ROO</span><span style={{ color: '#e4a832' }}>BET</span>
+          <span style={{ color: '#fff' }}>APEX</span><span style={{ color: '#e4a832' }}>GAME</span>
           <span style={{ fontSize: 10, color: '#e4a832', marginLeft: 6, background: '#e4a83215', padding: '2px 6px', borderRadius: 4 }}>ADMIN</span>
         </div>
         <div style={{ fontSize: 11, color: '#444', marginTop: 4 }}>{user?.email}</div>
@@ -73,7 +73,7 @@ export default function AdminLayout() {
           {menuOpen ? '✕' : '☰'}
         </button>
         <span style={{ fontWeight: 900, fontSize: 14 }}>
-          <span style={{ color: '#fff' }}>ROO</span><span style={{ color: '#e4a832' }}>BET</span>
+          <span style={{ color: '#fff' }}>APEX</span><span style={{ color: '#e4a832' }}>GAME</span>
           <span style={{ fontSize: 9, color: '#e4a832', marginLeft: 4 }}>ADMIN</span>
         </span>
       </div>

@@ -25,7 +25,7 @@ export function setupBotCommands(pool?: any) {
     if (text === '/start') {
       await bot!.api.sendMessage({
         chat_id: chatId,
-        text: '🎰 *Casino Admin Bot*\n\nКоманды:\n/stats — Статистика\n/pending — Pending выводы',
+        text: '🎰 *APEXGAME Admin Bot*\n\nКоманды:\n/stats — Статистика\n/pending — Pending выводы',
         parse_mode: 'Markdown',
         reply_markup: { inline_keyboard: [[{ text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }]] },
       });

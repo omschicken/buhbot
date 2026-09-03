@@ -49,7 +49,7 @@ export default function Login() {
       <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
         style={{ background: '#1a1a1a', border: '1px solid #272727', borderRadius: 14, padding: 28, width: '100%', maxWidth: 360, position: 'relative', zIndex: 2 }}>
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}><span>ROO</span><span style={{ color: '#e4a832' }}>BET</span></div>
+          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}><span>APEX</span><span style={{ color: '#e4a832' }}>GAME</span></div>
           <div style={{ fontSize: 12, color: '#555' }}>Sign in to your account</div>
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -25,7 +25,7 @@ export default function LoginPage({ onLogin }: { onLogin: (token: string) => voi
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
       <div style={{ fontSize: 40, marginBottom: 8 }}>🎰</div>
-      <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Casino Admin</h1>
+      <h1 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>APEXGAME Admin</h1>
       <p style={{ fontSize: 12, color: 'var(--text3)', marginBottom: 24 }}>Telegram Mini App</p>
 
       <div style={{ width: '100%', maxWidth: 300, display: 'flex', flexDirection: 'column', gap: 12 }}>

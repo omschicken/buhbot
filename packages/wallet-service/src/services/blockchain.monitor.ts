@@ -3,6 +3,7 @@ import axios from 'axios';
 import { ethers } from 'ethers';
 import { Pool } from 'pg';
 import { COINS, CoinSymbol } from './hdwallet.service';
+import { notifyDeposit } from './telegram.service';
 
 const ETHERSCAN_KEY = process.env.ETHERSCAN_API_KEY || '';
 const PRICE_CACHE: Record<string, { price: number; ts: number }> = {};
@@ -125,6 +126,7 @@ async function creditDeposit(pool: Pool, userId: string, coin: CoinSymbol, txid:
       [userId, amountUSD, `${coin} deposit (${amount} ${coin})`, txid]
     );
     await client.query('COMMIT');
+    notifyDeposit({ username: userId, amountUSD, amountCrypto: amount, coin, txHash: txid }).catch(console.error);
     console.log(`Credited ${amountUSD} USD (${amount} ${coin}) to user ${userId}`);
   } catch (e) { await client.query('ROLLBACK'); throw e; }
   finally { client.release(); }

@@ -40,7 +40,7 @@ export default function Wallet() {
   const [txLoading, setTxLoading] = useState(true)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
-  const [withdrawForm, setWithdrawForm] = useState({ amount: '', method: 'USDT', destination: '' })
+  const [withdrawForm, setWithdrawForm] = useState({ amount: '', coin: 'USDT', destination: '' })
   const [withdrawLoading, setWithdrawLoading] = useState(false)
 
   const [selectedCoin, setSelectedCoin] = useState<string | null>(null)
@@ -86,14 +86,14 @@ export default function Wallet() {
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault()
     const amount = parseFloat(withdrawForm.amount)
-    if (!amount || amount <= 0) { addToast(t('wallet.withdrawAmountMin'), 'error'); return }
-    if (amount > balance) { addToast(t('common.error'), 'error'); return }
+    if (!amount || amount < 10) { addToast('Minimum withdrawal is $10', 'error'); return }
+    if (amount > balance) { addToast('Insufficient balance', 'error'); return }
     if (!withdrawForm.destination) { addToast(t('wallet.address'), 'error'); return }
     setWithdrawLoading(true)
     try {
-      await withdraw(amount, withdrawForm.method, withdrawForm.destination)
+      await withdraw(amount, withdrawForm.coin, withdrawForm.destination)
       addToast(t('wallet.withdrawSuccess'), 'success')
-      setWithdrawForm({ amount: '', method: 'USDT', destination: '' })
+      setWithdrawForm({ amount: '', coin: 'USDT', destination: '' })
       const balRes = await getBalance()
       setBalance(balRes.data?.balance ?? 0)
       setPage(1)
@@ -200,25 +200,38 @@ export default function Wallet() {
             <div style={{ maxWidth: 440, margin: '0 auto', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
               <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>{t('wallet.withdraw')}</div>
               <form onSubmit={handleWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {[
-                  { label: `${t('wallet.amount')} (USD)`, key: 'amount', type: 'number', ph: '100' },
-                  { label: t('wallet.address'), key: 'destination', type: 'text', ph: '0x...' },
-                ].map(({ label, key, type, ph }) => (
-                  <div key={key}>
-                    <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{label}</label>
-                    <input value={withdrawForm[key as keyof typeof withdrawForm]} type={type} placeholder={ph}
-                      onChange={(e) => setWithdrawForm((f) => ({ ...f, [key]: e.target.value }))}
-                      style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: '9px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-                  </div>
-                ))}
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>Method</label>
-                  <select value={withdrawForm.method} onChange={(e) => setWithdrawForm((f) => ({ ...f, method: e.target.value }))}
-                    style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: '9px 12px', color: 'var(--text)', fontSize: 13, outline: 'none' }}>
-                    {COINS.map((c) => <option key={c.symbol} value={c.symbol}>{c.symbol} - {c.name}</option>)}
-                  </select>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 8 }}>Coin</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+                    {COINS.map((c) => (
+                      <button key={c.symbol} type="button" onClick={() => setWithdrawForm((f) => ({ ...f, coin: c.symbol }))}
+                        style={{ padding: '10px 6px', borderRadius: 8, border: withdrawForm.coin === c.symbol ? '2px solid #e4a832' : '1px solid var(--border)',
+                          background: withdrawForm.coin === c.symbol ? 'rgba(228,168,50,0.1)' : 'var(--bg2)', cursor: 'pointer', textAlign: 'center' }}>
+                        <div style={{ fontSize: 18 }}>{c.icon}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, marginTop: 2 }}>{c.symbol}</div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text3)' }}>Available: <span style={{ color: '#e4a832', fontWeight: 700 }}>${balance.toFixed(2)}</span></div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{t('wallet.amount')} (USD)</label>
+                  <div style={{ position: 'relative' }}>
+                    <input value={withdrawForm.amount} type="number" placeholder="100" min="10" step="0.01"
+                      onChange={(e) => setWithdrawForm((f) => ({ ...f, amount: e.target.value }))}
+                      style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: '9px 12px', paddingRight: 60, color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                    <button type="button" onClick={() => setWithdrawForm((f) => ({ ...f, amount: balance.toFixed(2) }))}
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: '#e4a832', color: '#000', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                      MAX
+                    </button>
+                  </div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Min: $10.00 · Available: <span style={{ color: '#e4a832', fontWeight: 700 }}>${balance.toFixed(2)}</span></div>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{withdrawForm.coin} {t('wallet.address')}</label>
+                  <input value={withdrawForm.destination} type="text" placeholder={withdrawForm.coin === 'SOL' ? 'So1...' : withdrawForm.coin === 'BTC' ? 'bc1...' : withdrawForm.coin === 'LTC' ? 'L...' : '0x...'}
+                    onChange={(e) => setWithdrawForm((f) => ({ ...f, destination: e.target.value }))}
+                    style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: '9px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
+                </div>
                 <button type="submit" disabled={withdrawLoading}
                   style={{ background: '#e4a832', color: '#000', fontWeight: 800, border: 'none', borderRadius: 8, padding: '11px', fontSize: 13, cursor: 'pointer', opacity: withdrawLoading ? 0.7 : 1 }}>
                   {withdrawLoading ? t('common.loading') : t('wallet.withdraw')}

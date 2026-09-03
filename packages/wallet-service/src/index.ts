@@ -7,6 +7,8 @@ import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 import { HDWalletService, COINS, CoinSymbol } from './services/hdwallet.service';
 import { startBlockchainMonitor } from './services/blockchain.monitor';
+import { notifyWithdrawalRequest, notifyWithdrawalApproved, notifyWithdrawalRejected, sendDailyStats } from './services/telegram.service';
+import cron from 'node-cron';
 
 dotenv.config();
 
@@ -70,6 +72,16 @@ pool.query(`
     reason TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW()
   );
+  CREATE TABLE IF NOT EXISTS withdrawal_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    amount NUMERIC(18,2) NOT NULL,
+    method TEXT,
+    destination TEXT,
+    status TEXT DEFAULT 'pending',
+    reason TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
 `).catch(console.error);
 
 const auth = (req: Request, res: Response, next: NextFunction) => {
@@ -114,8 +126,10 @@ app.get('/wallet/transactions', auth, async (req, res) => {
 app.post('/wallet/withdraw', auth, async (req, res) => {
   try {
     const userId = (req as any).user.id;
-    const { amount, method, destination } = req.body;
-    if (!amount || amount <= 0) { res.status(400).json({ error: 'Invalid amount' }); return; }
+    const user = (req as any).user;
+    const { amount, coin, address } = req.body;
+    if (!amount || amount < 10) { res.status(400).json({ error: 'Minimum withdrawal is $10' }); return; }
+    if (!coin || !address) { res.status(400).json({ error: 'Coin and address are required' }); return; }
     const wallet = await pool.query('SELECT id, balance FROM wallets WHERE user_id=$1', [userId]);
     if (!wallet.rows[0] || Number(wallet.rows[0].balance) < amount) {
       res.status(400).json({ error: 'Insufficient balance' }); return;
@@ -123,26 +137,34 @@ app.post('/wallet/withdraw', auth, async (req, res) => {
     await pool.query('UPDATE wallets SET balance=balance-$1 WHERE user_id=$2', [amount, userId]);
     await pool.query(
       'INSERT INTO transactions (user_id, wallet_id, amount, type, status, description, method, destination) VALUES ($1,$2,$3,\'withdrawal\',\'pending\',$4,$5,$6)',
-      [userId, wallet.rows[0].id, amount, `Withdrawal via ${method}`, method, destination]
+      [userId, wallet.rows[0].id, amount, `Withdrawal ${coin} to ${address}`, coin, address]
     );
-    // Create withdrawal request
-    await pool.query(
-      `CREATE TABLE IF NOT EXISTS withdrawal_requests (
-        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-        user_id UUID NOT NULL,
-        amount NUMERIC(18,2) NOT NULL,
-        method TEXT,
-        destination TEXT,
-        status TEXT DEFAULT 'pending',
-        reason TEXT,
-        created_at TIMESTAMPTZ DEFAULT NOW()
-      )`
+    const wr = await pool.query(
+      'INSERT INTO withdrawal_requests (user_id, amount, method, destination) VALUES ($1,$2,$3,$4) RETURNING id',
+      [userId, amount, coin, address]
     );
-    await pool.query(
-      'INSERT INTO withdrawal_requests (user_id, amount, method, destination) VALUES ($1,$2,$3,$4)',
-      [userId, amount, method, destination]
+    notifyWithdrawalRequest({
+      withdrawalId: wr.rows[0].id,
+      userId,
+      username: user.username || user.email || 'Unknown',
+      email: user.email || '',
+      amount,
+      coin,
+      address,
+      userBalance: Number(wallet.rows[0].balance) - amount,
+    }).catch(console.error);
+    res.json({ ok: true, withdrawalId: wr.rows[0].id });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/wallet/withdrawals/my', auth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const result = await pool.query(
+      'SELECT id, amount, method as coin, destination as address, status, reason, created_at FROM withdrawal_requests WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50',
+      [userId]
     );
-    res.json({ ok: true });
+    res.json({ withdrawals: result.rows });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
@@ -173,27 +195,29 @@ app.get('/admin/stats', auth, adminOnly, async (_req, res) => {
 
 app.get('/admin/withdrawals', auth, adminOnly, async (req, res) => {
   try {
-    await pool.query(`CREATE TABLE IF NOT EXISTS withdrawal_requests (id UUID PRIMARY KEY DEFAULT gen_random_uuid(), user_id UUID NOT NULL, amount NUMERIC(18,2) NOT NULL, method TEXT, destination TEXT, status TEXT DEFAULT 'pending', reason TEXT, created_at TIMESTAMPTZ DEFAULT NOW())`);
     const { status = '' } = req.query;
     const params: any[] = [];
     let where = 'WHERE 1=1';
     if (status) { params.push(status); where += ` AND wr.status=$${params.length}`; }
     const result = await pool.query(
-      `SELECT wr.*, u.email, u.username FROM withdrawal_requests wr LEFT JOIN transactions t ON t.user_id=wr.user_id AND t.type='withdrawal' LEFT JOIN pg_catalog.pg_description d ON false JOIN (SELECT id, email, username FROM wallets w2 LEFT JOIN (SELECT user_id, email, username FROM pg_catalog.pg_description WHERE false) u2 ON false) dummy ON false, (SELECT wr2.user_id FROM withdrawal_requests wr2 WHERE wr2.id=wr.id) x ${where} ORDER BY wr.created_at DESC LIMIT 50`,
-      params
-    );
-    // Simpler query
-    const r2 = await pool.query(
       `SELECT wr.* FROM withdrawal_requests wr ${where} ORDER BY wr.created_at DESC LIMIT 50`,
       params
     );
-    res.json({ withdrawals: r2.rows });
+    res.json({ withdrawals: result.rows });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 app.post('/admin/withdrawals/:id/approve', auth, adminOnly, async (req, res) => {
   try {
+    const wr = await pool.query('SELECT * FROM withdrawal_requests WHERE id=$1', [req.params.id]);
+    if (!wr.rows[0]) { res.status(404).json({ error: 'Not found' }); return; }
     await pool.query("UPDATE withdrawal_requests SET status='approved' WHERE id=$1", [req.params.id]);
+    notifyWithdrawalApproved({
+      username: wr.rows[0].user_id,
+      amount: Number(wr.rows[0].amount),
+      coin: wr.rows[0].method || 'BTC',
+      address: wr.rows[0].destination || '',
+    }).catch(console.error);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -202,10 +226,16 @@ app.post('/admin/withdrawals/:id/reject', auth, adminOnly, async (req, res) => {
   try {
     const { reason } = req.body;
     const wr = await pool.query('SELECT * FROM withdrawal_requests WHERE id=$1', [req.params.id]);
-    if (wr.rows[0]?.status === 'pending') {
+    if (!wr.rows[0]) { res.status(404).json({ error: 'Not found' }); return; }
+    if (wr.rows[0].status === 'pending') {
       await pool.query('UPDATE wallets SET balance=balance+$1 WHERE user_id=$2', [wr.rows[0].amount, wr.rows[0].user_id]);
     }
-    await pool.query("UPDATE withdrawal_requests SET status='rejected', reason=$1 WHERE id=$2", [reason, req.params.id]);
+    await pool.query("UPDATE withdrawal_requests SET status='rejected', reason=$1 WHERE id=$2", [reason || 'No reason', req.params.id]);
+    notifyWithdrawalRejected({
+      username: wr.rows[0].user_id,
+      amount: Number(wr.rows[0].amount),
+      reason: reason || 'No reason provided',
+    }).catch(console.error);
     res.json({ ok: true });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
@@ -283,6 +313,26 @@ app.get('/wallet/coins', (_req, res) => {
 });
 
 startBlockchainMonitor(pool);
+
+// Daily stats at 9:00 MSK (6:00 UTC)
+cron.schedule('0 6 * * *', async () => {
+  try {
+    const [deps, wds, ggrR, active, newP] = await Promise.all([
+      pool.query("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE type='deposit' AND created_at > NOW()-INTERVAL '1 day'"),
+      pool.query("SELECT COALESCE(SUM(amount),0) as s FROM transactions WHERE type='withdrawal' AND created_at > NOW()-INTERVAL '1 day'"),
+      pool.query("SELECT COALESCE(SUM(CASE WHEN type='bet' THEN amount ELSE 0 END)-SUM(CASE WHEN type='win' THEN amount ELSE 0 END),0) as ggr FROM transactions WHERE created_at > NOW()-INTERVAL '1 day'"),
+      pool.query("SELECT COUNT(DISTINCT user_id) as c FROM transactions WHERE created_at > NOW()-INTERVAL '1 day'"),
+      pool.query("SELECT COUNT(*) as c FROM wallets WHERE created_at > NOW()-INTERVAL '1 day'"),
+    ]);
+    await sendDailyStats({
+      newPlayers: Number(newP.rows[0].c),
+      deposits: Number(deps.rows[0].s),
+      withdrawals: Number(wds.rows[0].s),
+      ggr: Number(ggrR.rows[0].ggr),
+      activeUsers: Number(active.rows[0].c),
+    });
+  } catch (e) { console.error('Daily stats error:', e); }
+});
 
 app.listen(PORT, () => console.log(`wallet-service running on port ${PORT}`));
 export default app;

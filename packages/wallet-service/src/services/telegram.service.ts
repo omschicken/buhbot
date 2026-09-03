@@ -2,7 +2,7 @@ import { Bot } from 'node-telegram-bot-api';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
-const MINI_APP_URL = process.env.TG_MINI_APP_URL || 'https://tg-admin-casino.vercel.app';
+const MINI_APP_URL = process.env.TG_MINI_APP_URL || 'https://buhbot-ckxd-git-tg-admin-oms13.vercel.app';
 
 const bot = TOKEN ? new Bot(TOKEN) : null;
 

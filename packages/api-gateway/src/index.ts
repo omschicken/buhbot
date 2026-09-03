@@ -74,6 +74,18 @@ app.use(proxy(AFFILIATE_URL, '/api/affiliate', { '^/api/affiliate': '/affiliate'
 app.use('/api/admin', verifyToken, adminOnly);
 
 // Admin routes — balance adjustment (wallet-service) — direct route before generic players proxy
+app.post('/api/admin/players/:id/test-deposit', verifyToken, adminOnly, express.json(), async (req, res) => {
+  try {
+    const r = await fetch(`${WALLET_URL}/admin/players/${req.params.id}/test-deposit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/admin/players/:id/balance', verifyToken, adminOnly, express.json(), async (req, res) => {
   try {
     const r = await fetch(`${WALLET_URL}/admin/players/${req.params.id}/balance`, {

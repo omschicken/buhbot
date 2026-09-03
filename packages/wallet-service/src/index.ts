@@ -240,6 +240,35 @@ app.post('/admin/withdrawals/:id/reject', auth, adminOnly, async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// Manual test deposit — simulates a crypto deposit without real blockchain tx
+app.post('/admin/players/:id/test-deposit', auth, adminOnly, async (req, res) => {
+  try {
+    const { amount, coin = 'USDT', txHash } = req.body;
+    if (!amount || amount <= 0) { res.status(400).json({ error: 'Invalid amount' }); return; }
+    const fakeTx = txHash || `test_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query(
+        `INSERT INTO crypto_deposits (user_id, coin, tx_hash, amount, amount_usd, status, credited)
+         VALUES ($1,$2,$3,$4,$4,'confirmed',true)
+         ON CONFLICT (tx_hash, coin) DO NOTHING`,
+        [req.params.id, coin, fakeTx, amount]
+      );
+      await client.query('INSERT INTO wallets (user_id) VALUES ($1) ON CONFLICT DO NOTHING', [req.params.id]);
+      await client.query('UPDATE wallets SET balance=balance+$1 WHERE user_id=$2', [amount, req.params.id]);
+      await client.query(
+        `INSERT INTO transactions (user_id, amount, type, status, description, reference_id)
+         VALUES ($1,$2,'deposit','completed',$3,$4)`,
+        [req.params.id, amount, `Test ${coin} deposit (manual)`, fakeTx]
+      );
+      await client.query('COMMIT');
+      res.json({ ok: true, txHash: fakeTx, amount, coin });
+    } catch (e) { await client.query('ROLLBACK'); throw e; }
+    finally { client.release(); }
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
 app.post('/admin/players/:id/balance', auth, adminOnly, async (req, res) => {
   try {
     const { amount, type, reason } = req.body;

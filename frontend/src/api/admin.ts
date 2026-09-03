@@ -28,4 +28,7 @@ export const createBonus = (data: Record<string, unknown>) => api.post('/admin/b
 export const updateBonus = (id: string, data: Record<string, unknown>) => api.put(`/admin/bonuses/${id}`, data)
 export const deleteBonus = (id: string) => api.delete(`/admin/bonuses/${id}`)
 
+export const testDeposit = (id: string, amount: number, coin: string) =>
+  api.post(`/admin/players/${id}/test-deposit`, { amount, coin })
+
 export const seedAdmin = () => api.post('/admin/seed')

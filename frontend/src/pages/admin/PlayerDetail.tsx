@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getPlayer, setPlayerStatus, adjustBalance, addNote } from '../../api/admin'
+import { getPlayer, setPlayerStatus, adjustBalance, addNote, testDeposit } from '../../api/admin'
 import { useUIStore } from '../../store/useUIStore'
 
 const statusColor: Record<string, string> = { active: '#22c55e', suspended: '#f59e0b', banned: '#ef4444' }
@@ -14,6 +14,8 @@ export default function AdminPlayerDetail() {
   const [note, setNote] = useState('')
   const [adjForm, setAdjForm] = useState({ amount: '', type: 'credit', reason: '' })
   const [adjLoading, setAdjLoading] = useState(false)
+  const [testDepForm, setTestDepForm] = useState({ amount: '', coin: 'USDT' })
+  const [testDepLoading, setTestDepLoading] = useState(false)
 
   const load = () => {
     if (!id) return
@@ -45,6 +47,21 @@ export default function AdminPlayerDetail() {
       load()
     } catch { addToast('Failed', 'error') }
     finally { setAdjLoading(false) }
+  }
+
+  const handleTestDeposit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const amount = parseFloat(testDepForm.amount)
+    if (!amount || !id) return
+    if (!confirm(`Simulate $${amount} ${testDepForm.coin} deposit to this player?`)) return
+    setTestDepLoading(true)
+    try {
+      const r = await testDeposit(id, amount, testDepForm.coin)
+      addToast(`Test deposit OK — tx: ${r.data.txHash}`, 'success')
+      setTestDepForm({ amount: '', coin: 'USDT' })
+      load()
+    } catch { addToast('Test deposit failed', 'error') }
+    finally { setTestDepLoading(false) }
   }
 
   const handleNote = async () => {
@@ -114,6 +131,27 @@ export default function AdminPlayerDetail() {
               <button type="submit" disabled={adjLoading}
                 style={{ background: '#e4a832', color: '#000', fontWeight: 700, fontSize: 12, padding: '8px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
                 Apply
+              </button>
+            </form>
+          </div>
+
+          {/* Test deposit */}
+          <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontSize: 11, color: '#444', marginBottom: 12, letterSpacing: 0.5 }}>TEST DEPOSIT</div>
+            <form onSubmit={handleTestDeposit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <input value={testDepForm.amount} onChange={(e) => setTestDepForm((f) => ({ ...f, amount: e.target.value }))}
+                type="number" placeholder="Amount (USD)"
+                style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 10px', color: '#fff', fontSize: 12, outline: 'none' }} />
+              <select value={testDepForm.coin} onChange={(e) => setTestDepForm((f) => ({ ...f, coin: e.target.value }))}
+                style={{ background: '#111', border: '1px solid #2a2a2a', borderRadius: 6, padding: '8px 10px', color: '#fff', fontSize: 12 }}>
+                <option value="USDT">USDT (ERC-20)</option>
+                <option value="USDT_TRC20">USDT (TRC-20)</option>
+                <option value="BTC">BTC</option>
+                <option value="ETH">ETH</option>
+              </select>
+              <button type="submit" disabled={testDepLoading}
+                style={{ background: '#22c55e', color: '#000', fontWeight: 700, fontSize: 12, padding: '8px', borderRadius: 6, border: 'none', cursor: 'pointer' }}>
+                Simulate Deposit
               </button>
             </form>
           </div>

@@ -6,6 +6,7 @@ import Withdrawals from './pages/Withdrawals'
 import Players from './pages/Players'
 import PlayerDetail from './pages/PlayerDetail'
 import KYC from './pages/KYC'
+import WithdrawalDetail from './pages/WithdrawalDetail'
 
 function TabBar() {
   const tabs = [
@@ -42,6 +43,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/withdrawals" element={<Withdrawals />} />
+        <Route path="/withdrawals/:id" element={<WithdrawalDetail />} />
         <Route path="/players" element={<Players />} />
         <Route path="/players/:id" element={<PlayerDetail />} />
         <Route path="/kyc" element={<KYC />} />

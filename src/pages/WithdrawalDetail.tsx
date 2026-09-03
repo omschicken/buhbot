@@ -47,31 +47,28 @@ export default function WithdrawalDetail() {
     setActing(true)
     try {
       await approveWithdrawal(id!, txHash || undefined)
-      WebApp.showAlert('✅ Вывод одобрен')
       qc.invalidateQueries({ queryKey: ['withdrawals'] })
+      try { WebApp.showAlert('✅ Вывод одобрен') } catch {}
       navigate(-1)
     } catch {
-      WebApp.showAlert('❌ Ошибка при одобрении')
+      try { WebApp.showAlert('❌ Ошибка при одобрении') } catch {}
     } finally {
       setActing(false)
     }
   }
 
-  const handleReject = () => {
-    WebApp.showConfirm('Отклонить вывод? Средства вернутся игроку.', async (ok) => {
-      if (!ok) return
-      setActing(true)
-      try {
-        await rejectWithdrawal(id!, 'Отклонено администратором')
-        WebApp.showAlert('✅ Вывод отклонён, средства возвращены')
-        qc.invalidateQueries({ queryKey: ['withdrawals'] })
-        navigate(-1)
-      } catch {
-        WebApp.showAlert('❌ Ошибка при отклонении')
-      } finally {
-        setActing(false)
-      }
-    })
+  const handleReject = async () => {
+    setActing(true)
+    try {
+      await rejectWithdrawal(id!, 'Отклонено администратором')
+      qc.invalidateQueries({ queryKey: ['withdrawals'] })
+      try { WebApp.showAlert('✅ Вывод отклонён, средства возвращены') } catch {}
+      navigate(-1)
+    } catch {
+      try { WebApp.showAlert('❌ Ошибка при отклонении') } catch {}
+    } finally {
+      setActing(false)
+    }
   }
 
   if (isLoading) return <div className="page" style={{ color: 'var(--text3)', textAlign: 'center', paddingTop: 40 }}>Загрузка...</div>

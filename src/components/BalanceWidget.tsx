@@ -1,24 +1,16 @@
-import { useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
+import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import AnimatedCounter from './AnimatedCounter'
 
 export default function BalanceWidget() {
-  const balance = useAuthStore((s) => s.balance)
-  const prevBalance = useRef(balance)
-
-  useEffect(() => {
-    prevBalance.current = balance
-  }, [balance])
-
-  const changed = prevBalance.current !== balance
-
+  const { balance } = useAuthStore()
   return (
-    <Link
-      to="/wallet"
-      className={`flex items-center gap-1.5 bg-[#00ff88]/10 border border-[#00ff88]/30 rounded-full px-3 py-1.5 text-[#00ff88] font-bold text-sm transition-all hover:bg-[#00ff88]/20 ${changed ? 'animate-pulse' : ''}`}
+    <motion.div
+      className="flex items-center gap-2 glass rounded-xl px-4 py-2 neon-border"
+      whileHover={{ scale: 1.02 }}
     >
-      <span>$</span>
-      <span>{balance.toFixed(2)}</span>
-    </Link>
+      <span className="text-[#00ff88]/60 text-sm">USDT</span>
+      <AnimatedCounter value={balance} prefix="$" className="text-[#00ff88] font-bold font-mono text-glow-green" />
+    </motion.div>
   )
 }

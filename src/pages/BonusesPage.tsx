@@ -1,104 +1,80 @@
-import { useQuery } from '@tanstack/react-query'
-import { getBonuses } from '../api/bonuses'
-
-const mockBonuses = [
-  { id: '1', type: 'welcome', amount: 500, currency: 'USD', wagering: 30, wagerCompleted: 450, wagerRequired: 15000, expiresAt: '2024-02-15' },
-  { id: '2', type: 'free-spin', amount: 50, currency: 'FS', wagering: 40, wagerCompleted: 2000, wagerRequired: 5000, expiresAt: '2024-01-20' },
-]
-
-const bonusColors: Record<string, { bg: string; text: string; label: string }> = {
-  welcome: { bg: 'from-purple-900 to-purple-700', text: 'text-purple-300', label: '🎁 Welcome Bonus' },
-  'free-spin': { bg: 'from-blue-900 to-blue-700', text: 'text-blue-300', label: '🌀 Free Spins' },
-  deposit: { bg: 'from-green-900 to-green-700', text: 'text-green-300', label: '💰 Deposit Bonus' },
-}
-
-function daysLeft(date: string) {
-  const diff = new Date(date).getTime() - Date.now()
-  return Math.max(0, Math.ceil(diff / 86400000))
-}
+import { useState } from 'react'
+import { motion } from 'framer-motion'
+import { mockBonuses } from '../data/mockData'
 
 export default function BonusesPage() {
-  const { data } = useQuery({
-    queryKey: ['bonuses'],
-    queryFn: getBonuses,
-    retry: false,
-  })
-
-  const bonuses = data?.data?.bonuses || data?.data || mockBonuses
+  const [promoCode, setPromoCode] = useState('')
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-8">
-          <h1 className="text-3xl font-black text-white">Bonuses</h1>
-          <span className="text-gray-400 text-sm">{bonuses.length} active</span>
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-bold gradient-text mb-2">Bonuses</motion.h1>
+      <p className="text-white/40 mb-8">Your active bonuses and promotions</p>
+
+      {/* Promo code */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 neon-border mb-8">
+        <h2 className="text-lg font-bold text-white mb-4">🎟️ Promo Code</h2>
+        <div className="flex gap-3">
+          <input value={promoCode} onChange={(e) => setPromoCode(e.target.value.toUpperCase())} placeholder="NEONBET2024"
+            className="flex-1 bg-dark-700 border border-white/5 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#00ff88]/40 transition-colors placeholder:text-white/20 font-mono tracking-wider" />
+          <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+            className="bg-[#00ff88] text-black font-bold px-6 py-3 rounded-xl glow-green">Apply</motion.button>
         </div>
+      </motion.div>
 
-        {bonuses.length === 0 ? (
-          <div className="text-center py-16 text-gray-500">
-            No active bonuses. Check back later!
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 gap-4">
-            {bonuses.map((bonus: { id: string; type: string; amount: number; currency: string; wagering: number; wagerCompleted: number; wagerRequired: number; expiresAt: string }) => {
-              const config = bonusColors[bonus.type] || bonusColors.deposit
-              const pct = Math.min(100, Math.round((bonus.wagerCompleted / bonus.wagerRequired) * 100))
-              const days = daysLeft(bonus.expiresAt)
-
-              return (
-                <div key={bonus.id} className="bg-[#16213e] rounded-xl border border-white/5 overflow-hidden">
-                  <div className={`bg-gradient-to-r ${config.bg} p-5`}>
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-sm font-medium ${config.text}`}>{config.label}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full bg-black/20 ${days < 3 ? 'text-red-400' : 'text-gray-300'}`}>
-                        {days}d left
-                      </span>
-                    </div>
-                    <div className="text-3xl font-black text-white">
-                      {bonus.amount} {bonus.currency}
-                    </div>
-                  </div>
-
-                  <div className="p-5">
-                    <div className="flex justify-between text-sm text-gray-400 mb-2">
-                      <span>Wagering Progress</span>
-                      <span className="text-white font-medium">{pct}%</span>
-                    </div>
-                    <div className="h-2 bg-[#0f3460] rounded-full overflow-hidden mb-2">
-                      <div
-                        className="h-full bg-gradient-to-r from-[#00ff88] to-[#00cc70] rounded-full"
-                        style={{ width: `${pct}%` }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>${bonus.wagerCompleted.toLocaleString()} completed</span>
-                      <span>${bonus.wagerRequired.toLocaleString()} required</span>
-                    </div>
-                    <div className="mt-3 text-xs text-gray-600">
-                      {bonus.wagering}x wagering requirement
-                    </div>
-                  </div>
+      {/* Active bonuses */}
+      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+        {mockBonuses.map((bonus, i) => {
+          const pct = Math.round((bonus.wagerDone / bonus.wagerTotal) * 100)
+          const daysLeft = Math.ceil((new Date(bonus.expiresAt).getTime() - Date.now()) / 86400000)
+          return (
+            <motion.div key={bonus.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+              className="glass rounded-2xl p-6 hover:bg-white/5 transition-colors" style={{ borderColor: bonus.color + '20' }}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="text-2xl">{bonus.type === 'welcome' ? '🎉' : bonus.type === 'freespin' ? '🎰' : '🔄'}</div>
+                <span className="text-xs px-2 py-1 rounded-full font-medium" style={{ background: bonus.color + '20', color: bonus.color }}>
+                  Active
+                </span>
+              </div>
+              <h3 className="font-bold text-white mb-1">{bonus.label}</h3>
+              <p className="text-2xl font-bold font-mono mb-1" style={{ color: bonus.color }}>{bonus.amount} {bonus.currency}</p>
+              <p className="text-white/30 text-xs mb-4">{daysLeft}d remaining · ×{bonus.wagering} wagering</p>
+              <div className="mb-2">
+                <div className="flex justify-between text-xs text-white/40 mb-1">
+                  <span>Wagered</span><span>{pct}%</span>
                 </div>
-              )
-            })}
-          </div>
-        )}
-
-        {/* Promo code */}
-        <div className="bg-[#16213e] rounded-xl border border-white/5 p-6 mt-6">
-          <h2 className="text-lg font-bold text-white mb-3">Have a Promo Code?</h2>
-          <div className="flex gap-3">
-            <input
-              type="text"
-              placeholder="Enter promo code"
-              className="flex-1 bg-[#0f3460] border border-[#00ff88]/20 text-white rounded-lg px-4 py-3 focus:border-[#00ff88] focus:outline-none placeholder-gray-600"
-            />
-            <button className="bg-[#00ff88] text-[#1a1a2e] font-bold rounded-lg px-6 py-3 hover:bg-[#00cc70] transition-all whitespace-nowrap">
-              Apply
-            </button>
-          </div>
-        </div>
+                <div className="h-2 bg-dark-700 rounded-full overflow-hidden">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 1, delay: 0.3 + i * 0.1 }}
+                    className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${bonus.color}, ${bonus.color}80)` }} />
+                </div>
+                <div className="flex justify-between text-xs text-white/30 mt-1">
+                  <span>${bonus.wagerDone.toLocaleString()}</span><span>${bonus.wagerTotal.toLocaleString()}</span>
+                </div>
+              </div>
+            </motion.div>
+          )
+        })}
       </div>
+
+      {/* Available promotions */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-white mb-4">Available Promotions</h2>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {[
+            { title: '100% First Deposit', desc: 'Up to $500 bonus', icon: '💰', color: '#00ff88' },
+            { title: 'Weekly Reload 50%', desc: 'Every Monday', icon: '🔄', color: '#7c3aed' },
+            { title: '200 Free Spins', desc: 'On Sweet Bonanza', icon: '🎰', color: '#0ea5e9' },
+            { title: '20% Cashback', desc: 'On weekly losses', icon: '💸', color: '#f59e0b' },
+          ].map((promo, i) => (
+            <motion.div key={i} whileHover={{ scale: 1.02 }} className="bg-dark-700/50 rounded-xl p-4 flex items-center gap-3 cursor-pointer hover:bg-dark-700 transition-colors">
+              <div className="text-2xl w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: promo.color + '15' }}>{promo.icon}</div>
+              <div>
+                <p className="text-white font-medium text-sm">{promo.title}</p>
+                <p className="text-white/40 text-xs">{promo.desc}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   )
 }

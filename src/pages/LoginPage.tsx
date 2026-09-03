@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
+import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/authStore'
+import ParticlesBg from '../components/ParticlesBg'
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -9,83 +10,71 @@ export default function LoginPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const { setToken, setUser } = useAuthStore()
-  const navigate = useNavigate()
+  const nav = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
+    setLoading(true); setError('')
     try {
-      const res = await login(email, password)
-      const { token, user } = res.data
-      setToken(token)
-      if (user) setUser(user)
-      navigate('/')
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } }
-      setError(error.response?.data?.message || 'Invalid email or password')
-    } finally {
-      setLoading(false)
-    }
+      await new Promise((r) => setTimeout(r, 800))
+      setToken('mock-jwt-token')
+      setUser({ id: '1', email, username: email.split('@')[0], kycStatus: 'approved', vipLevel: 3 })
+      nav('/')
+    } catch {
+      setError('Invalid email or password')
+    } finally { setLoading(false) }
   }
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🎰</div>
-          <h1 className="text-3xl font-black text-white">Welcome Back</h1>
-          <p className="text-gray-400 mt-2">Sign in to CasinoPro</p>
-        </div>
+    <div className="min-h-screen flex items-center justify-center relative overflow-hidden bg-dark-900">
+      <ParticlesBg />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(124,58,237,0.1),transparent)]" />
+      <motion.div
+        initial={{ opacity: 0, y: 20, scale: 0.95 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        className="relative w-full max-w-md mx-4"
+      >
+        <div className="glass rounded-2xl p-8 neon-border">
+          <div className="text-center mb-8">
+            <motion.div className="text-5xl mb-3" animate={{ rotate: [0, 10, -10, 0] }} transition={{ duration: 2, repeat: Infinity }}>🎰</motion.div>
+            <h1 className="text-2xl font-bold gradient-text">Welcome back</h1>
+            <p className="text-white/40 text-sm mt-1">Sign in to your account</p>
+          </div>
 
-        <div className="bg-[#16213e] rounded-xl border border-white/5 p-8">
+          {error && (
+            <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+              className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 text-sm mb-6">
+              {error}
+            </motion.div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="you@example.com"
-                className="w-full bg-[#0f3460] border border-[#00ff88]/20 text-white rounded-lg px-4 py-3 focus:border-[#00ff88] focus:outline-none placeholder-gray-600"
-              />
+              <label className="text-white/50 text-xs uppercase tracking-wider block mb-2">Email</label>
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required
+                className="w-full bg-dark-700 border border-white/5 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#00ff88]/40 transition-colors placeholder:text-white/20"
+                placeholder="you@example.com" />
             </div>
             <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full bg-[#0f3460] border border-[#00ff88]/20 text-white rounded-lg px-4 py-3 focus:border-[#00ff88] focus:outline-none placeholder-gray-600"
-              />
+              <label className="text-white/50 text-xs uppercase tracking-wider block mb-2">Password</label>
+              <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required
+                className="w-full bg-dark-700 border border-white/5 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#00ff88]/40 transition-colors placeholder:text-white/20"
+                placeholder="••••••••" />
             </div>
-
-            {error && (
-              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3 text-red-400 text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
+            <motion.button
+              type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
               disabled={loading}
-              className="w-full bg-[#00ff88] text-[#1a1a2e] font-bold rounded-lg px-6 py-3 hover:bg-[#00cc70] transition-all disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full bg-[#00ff88] text-black font-bold py-3 rounded-xl glow-green transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
+              {loading ? <span className="inline-block animate-spin">⟳</span> : 'Sign In'}
+            </motion.button>
           </form>
 
-          <p className="text-center text-gray-400 text-sm mt-6">
-            Don't have an account?{' '}
-            <Link to="/register" className="text-[#00ff88] hover:underline font-medium">
-              Register
-            </Link>
+          <p className="text-center text-white/40 text-sm mt-6">
+            No account? <Link to="/register" className="text-[#00ff88] hover:underline">Sign up</Link>
           </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

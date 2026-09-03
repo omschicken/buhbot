@@ -1,166 +1,117 @@
 import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getWallet, getTransactions, withdraw } from '../api/wallet'
+import { motion } from 'framer-motion'
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { useAuthStore } from '../store/authStore'
+import AnimatedCounter from '../components/AnimatedCounter'
+import { mockTransactions, mockBalanceHistory } from '../data/mockData'
 
-const mockTx = [
-  { id: '1', type: 'deposit', amount: 500, status: 'completed', createdAt: '2024-01-15' },
-  { id: '2', type: 'bet', amount: -50, status: 'completed', createdAt: '2024-01-15' },
-  { id: '3', type: 'win', amount: 120, status: 'completed', createdAt: '2024-01-15' },
-  { id: '4', type: 'withdrawal', amount: -200, status: 'pending', createdAt: '2024-01-14' },
-]
-
-const statusColor: Record<string, string> = {
-  completed: 'bg-green-500/20 text-green-400',
-  pending: 'bg-yellow-500/20 text-yellow-400',
-  failed: 'bg-red-500/20 text-red-400',
-}
+const TX_ICONS: Record<string, string> = { deposit: '↓', withdrawal: '↑', bet: '🎲', win: '🏆', bonus: '🎁' }
+const TX_COLORS: Record<string, string> = { deposit: '#00ff88', withdrawal: '#ef4444', bet: '#f59e0b', win: '#00ff88', bonus: '#7c3aed' }
 
 export default function WalletPage() {
-  const balance = useAuthStore((s) => s.balance)
-  const [showDeposit, setShowDeposit] = useState(false)
-  const [amount, setAmount] = useState('')
-  const [address, setAddress] = useState('')
-  const [withdrawMsg, setWithdrawMsg] = useState('')
-
-  const { data: txData } = useQuery({
-    queryKey: ['transactions'],
-    queryFn: getTransactions,
-    retry: false,
-  })
-
-  const { data: walletData } = useQuery({
-    queryKey: ['wallet'],
-    queryFn: getWallet,
-    retry: false,
-  })
-
-  const displayBalance = walletData?.data?.balance ?? balance
-
-  const transactions = txData?.data?.transactions || txData?.data || mockTx
-
-  const handleWithdraw = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try {
-      await withdraw(Number(amount), address)
-      setWithdrawMsg('Withdrawal submitted successfully!')
-      setAmount('')
-      setAddress('')
-    } catch {
-      setWithdrawMsg('Withdrawal failed. Please try again.')
-    }
-  }
+  const { balance } = useAuthStore()
+  const [withdrawAmount, setWithdrawAmount] = useState('')
+  const [withdrawAddress, setWithdrawAddress] = useState('')
 
   return (
-    <div className="min-h-screen bg-[#1a1a2e] py-8 px-4">
-      <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-black text-white mb-8">Wallet</h1>
+    <div className="max-w-5xl mx-auto px-4 py-8">
+      <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="text-3xl font-bold gradient-text mb-8">Wallet</motion.h1>
 
-        {/* Balance card */}
-        <div className="bg-gradient-to-r from-[#0f3460] to-[#16213e] rounded-xl border border-[#00ff88]/20 p-8 mb-6 text-center">
-          <p className="text-gray-400 mb-2">Available Balance</p>
-          <div className="text-6xl font-black text-[#00ff88] mb-6">
-            ${displayBalance.toFixed(2)}
+      <div className="grid md:grid-cols-3 gap-4 mb-8">
+        {/* Balance */}
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass rounded-2xl p-6 neon-border md:col-span-1">
+          <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Total Balance</p>
+          <AnimatedCounter value={balance} prefix="$" className="text-4xl font-bold font-mono gradient-text-green text-glow-green" />
+          <p className="text-white/30 text-sm mt-1">≈ {(balance / 42000).toFixed(6)} BTC</p>
+          <div className="mt-4 flex gap-2">
+            <button className="flex-1 bg-[#00ff88] text-black font-bold py-2 rounded-xl text-sm glow-green">Deposit</button>
+            <button className="flex-1 glass border border-white/10 text-white font-medium py-2 rounded-xl text-sm hover:bg-white/5">Withdraw</button>
           </div>
-          <div className="flex justify-center gap-3">
-            <button
-              onClick={() => setShowDeposit(true)}
-              className="bg-[#00ff88] text-[#1a1a2e] font-bold rounded-lg px-6 py-3 hover:bg-[#00cc70] transition-all"
-            >
-              Deposit
-            </button>
-          </div>
-        </div>
+        </motion.div>
 
-        {/* Deposit modal */}
-        {showDeposit && (
-          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4" onClick={() => setShowDeposit(false)}>
-            <div className="bg-[#16213e] rounded-xl border border-white/10 p-8 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-              <h2 className="text-xl font-bold text-white mb-4">Deposit Crypto</h2>
-              <div className="bg-[#0f3460] rounded-lg p-6 text-center mb-4">
-                <div className="w-32 h-32 bg-white/10 rounded-lg mx-auto mb-3 flex items-center justify-center text-4xl">
-                  📱
-                </div>
-                <p className="text-xs text-gray-400 mb-2">Send BTC to:</p>
-                <p className="text-xs text-[#00ff88] font-mono break-all">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</p>
-              </div>
-              <p className="text-xs text-gray-500 text-center mb-4">Minimum deposit: $10. Confirmations: 3</p>
-              <button onClick={() => setShowDeposit(false)} className="w-full bg-[#00ff88] text-[#1a1a2e] font-bold rounded-lg py-3 hover:bg-[#00cc70] transition-all">
-                Done
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Withdraw */}
-        <div className="bg-[#16213e] rounded-xl border border-white/5 p-6 mb-6">
-          <h2 className="text-xl font-bold text-white mb-4">Withdraw</h2>
-          <form onSubmit={handleWithdraw} className="space-y-3">
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Amount (USD)</label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="100"
-                min="10"
-                required
-                className="w-full bg-[#0f3460] border border-[#00ff88]/20 text-white rounded-lg px-4 py-3 focus:border-[#00ff88] focus:outline-none placeholder-gray-600"
-              />
-            </div>
-            <div>
-              <label className="block text-sm text-gray-400 mb-1.5">Wallet Address</label>
-              <input
-                type="text"
-                value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                placeholder="bc1q..."
-                required
-                className="w-full bg-[#0f3460] border border-[#00ff88]/20 text-white rounded-lg px-4 py-3 focus:border-[#00ff88] focus:outline-none placeholder-gray-600"
-              />
-            </div>
-            {withdrawMsg && (
-              <p className={`text-sm ${withdrawMsg.includes('success') ? 'text-[#00ff88]' : 'text-red-400'}`}>{withdrawMsg}</p>
-            )}
-            <button type="submit" className="bg-[#00ff88] text-[#1a1a2e] font-bold rounded-lg px-6 py-3 hover:bg-[#00cc70] transition-all">
-              Withdraw
-            </button>
-          </form>
-        </div>
-
-        {/* Transactions */}
-        <div className="bg-[#16213e] rounded-xl border border-white/5 p-6">
-          <h2 className="text-xl font-bold text-white mb-4">Transaction History</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="text-gray-500 border-b border-white/5">
-                  <th className="text-left pb-3">Date</th>
-                  <th className="text-left pb-3">Type</th>
-                  <th className="text-right pb-3">Amount</th>
-                  <th className="text-right pb-3">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-white/5">
-                {transactions.map((tx: { id: string; type: string; amount: number; status: string; createdAt: string }) => (
-                  <tr key={tx.id} className="hover:bg-white/2">
-                    <td className="py-3 text-gray-400">{tx.createdAt}</td>
-                    <td className="py-3 text-gray-300 capitalize">{tx.type}</td>
-                    <td className={`py-3 text-right font-semibold ${tx.amount > 0 ? 'text-[#00ff88]' : 'text-red-400'}`}>
-                      {tx.amount > 0 ? '+' : ''}${Math.abs(tx.amount).toFixed(2)}
-                    </td>
-                    <td className="py-3 text-right">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColor[tx.status] || 'bg-gray-500/20 text-gray-400'}`}>
-                        {tx.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {/* Stats */}
+        {[
+          { label: 'Total Deposited', value: '$5,200.00', color: '#00ff88' },
+          { label: 'Total Withdrawn', value: '$3,840.50', color: '#7c3aed' },
+        ].map((stat, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}
+            className="glass rounded-2xl p-6">
+            <p className="text-white/40 text-xs uppercase tracking-wider mb-2">{stat.label}</p>
+            <p className="text-2xl font-bold font-mono" style={{ color: stat.color }}>{stat.value}</p>
+          </motion.div>
+        ))}
       </div>
+
+      {/* Balance chart */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass rounded-2xl p-6 mb-8">
+        <h2 className="text-lg font-bold text-white mb-4">Balance History</h2>
+        <ResponsiveContainer width="100%" height={200}>
+          <AreaChart data={mockBalanceHistory}>
+            <defs>
+              <linearGradient id="balGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00ff88" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#00ff88" stopOpacity={0} />
+              </linearGradient>
+            </defs>
+            <XAxis dataKey="day" tick={{ fill: '#ffffff40', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <YAxis tick={{ fill: '#ffffff40', fontSize: 12 }} axisLine={false} tickLine={false} />
+            <Tooltip contentStyle={{ background: '#141420', border: '1px solid #00ff8830', borderRadius: 12, color: '#fff' }} />
+            <Area type="monotone" dataKey="balance" stroke="#00ff88" strokeWidth={2} fill="url(#balGrad)" />
+          </AreaChart>
+        </ResponsiveContainer>
+      </motion.div>
+
+      {/* Withdraw form */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className="glass rounded-2xl p-6 mb-8">
+        <h2 className="text-lg font-bold text-white mb-4">Withdraw</h2>
+        <div className="grid sm:grid-cols-2 gap-4">
+          <div>
+            <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">Amount (USDT)</label>
+            <input value={withdrawAmount} onChange={(e) => setWithdrawAmount(e.target.value)} type="number" placeholder="0.00"
+              className="w-full bg-dark-700 border border-white/5 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#00ff88]/40 transition-colors placeholder:text-white/20" />
+          </div>
+          <div>
+            <label className="text-white/40 text-xs uppercase tracking-wider block mb-2">Wallet Address</label>
+            <input value={withdrawAddress} onChange={(e) => setWithdrawAddress(e.target.value)} type="text" placeholder="0x..."
+              className="w-full bg-dark-700 border border-white/5 text-white rounded-xl px-4 py-3 focus:outline-none focus:border-[#00ff88]/40 transition-colors placeholder:text-white/20 font-mono text-sm" />
+          </div>
+        </div>
+        <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+          className="mt-4 bg-[#7c3aed] text-white font-bold px-8 py-3 rounded-xl glow-purple hover:bg-[#6d28d9] transition-colors">
+          Submit Withdrawal
+        </motion.button>
+      </motion.div>
+
+      {/* Transactions */}
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="glass rounded-2xl p-6">
+        <h2 className="text-lg font-bold text-white mb-4">Transactions</h2>
+        <div className="space-y-3">
+          {mockTransactions.map((tx, i) => (
+            <motion.div key={tx.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
+              className="flex items-center gap-4 p-4 bg-dark-700/50 rounded-xl hover:bg-dark-700 transition-colors">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0"
+                style={{ background: TX_COLORS[tx.type] + '20' }}>
+                {TX_ICONS[tx.type]}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-white font-medium capitalize">{tx.type}</p>
+                  {'game' in tx && <span className="text-white/40 text-xs">· {(tx as { game: string }).game}</span>}
+                </div>
+                <p className="text-white/30 text-xs font-mono">{new Date(tx.createdAt).toLocaleString()}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <p className="font-bold font-mono" style={{ color: TX_COLORS[tx.type] }}>
+                  {tx.amount > 0 ? '+' : ''}{tx.amount} {tx.currency}
+                </p>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${tx.status === 'completed' ? 'bg-[#00ff88]/10 text-[#00ff88]' : 'bg-yellow-500/10 text-yellow-400'}`}>
+                  {tx.status}
+                </span>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </motion.div>
     </div>
   )
 }

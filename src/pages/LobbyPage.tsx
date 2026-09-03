@@ -1,114 +1,126 @@
-import { useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { getGames } from '../api/games'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { useGameStore } from '../store/gameStore'
 import GameCard from '../components/GameCard'
+import ParticlesBg from '../components/ParticlesBg'
+import WinnersTicker from '../components/WinnersTicker'
+import AnimatedCounter from '../components/AnimatedCounter'
+import { mockGames, mockProviders } from '../data/mockData'
 
-const mockGames = [
-  { id: '1', name: 'Book of Ra', provider: 'Novomatic', category: 'slots', rtp: 96.1 },
-  { id: '2', name: 'Starburst', provider: 'NetEnt', category: 'slots', rtp: 96.1 },
-  { id: '3', name: 'Blackjack Pro', provider: 'Evolution', category: 'table', rtp: 99.5 },
-  { id: '4', name: 'Roulette Live', provider: 'Evolution', category: 'live', rtp: 97.3 },
-  { id: '5', name: 'Sweet Bonanza', provider: 'Pragmatic', category: 'slots', rtp: 96.5 },
-  { id: '6', name: 'Gates of Olympus', provider: 'Pragmatic', category: 'slots', rtp: 96.5 },
-  { id: '7', name: 'Crazy Time', provider: 'Evolution', category: 'live', rtp: 96.1 },
-  { id: '8', name: 'Texas Holdem', provider: 'Playtech', category: 'table', rtp: 98.6 },
-  { id: '9', name: 'Wolf Gold', provider: 'Pragmatic', category: 'slots', rtp: 96.0 },
-  { id: '10', name: 'Lightning Roulette', provider: 'Evolution', category: 'live', rtp: 97.3 },
-  { id: '11', name: 'Baccarat', provider: 'Ezugi', category: 'table', rtp: 98.9 },
-  { id: '12', name: 'Fruit Party', provider: 'Pragmatic', category: 'slots', rtp: 96.5 },
+const CATEGORIES = [
+  { id: 'all', label: 'All Games', icon: '🎮' },
+  { id: 'slots', label: 'Slots', icon: '💎' },
+  { id: 'live', label: 'Live', icon: '🎰' },
+  { id: 'table', label: 'Table', icon: '🃏' },
 ]
-
-const categories = [
-  { key: 'all', label: 'All Games' },
-  { key: 'slots', label: '🎰 Slots' },
-  { key: 'table', label: '🃏 Table' },
-  { key: 'live', label: '📺 Live' },
-]
-
-function SkeletonCard() {
-  return (
-    <div className="bg-[#16213e] rounded-xl border border-white/5 overflow-hidden animate-pulse">
-      <div className="aspect-[4/3] bg-white/5" />
-      <div className="p-3">
-        <div className="h-4 bg-white/10 rounded mb-2" />
-        <div className="h-3 bg-white/5 rounded w-2/3" />
-      </div>
-    </div>
-  )
-}
 
 export default function LobbyPage() {
-  const [category, setCategory] = useState('all')
+  const { category, search, setCategory, setSearch } = useGameStore()
+  const [payout, setPayout] = useState(2_847_392.50)
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['games', category],
-    queryFn: () => getGames(category === 'all' ? undefined : category),
-    retry: false,
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setPayout((p) => p + Math.random() * 150 + 50)
+    }, 2000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const filtered = mockGames.filter((g) => {
+    const matchCat = category === 'all' || g.category === category
+    const matchSearch = !search || g.name.toLowerCase().includes(search.toLowerCase()) || g.provider.toLowerCase().includes(search.toLowerCase())
+    return matchCat && matchSearch
   })
 
-  const apiGames = data?.data?.games || data?.data || []
-  const games = apiGames.length > 0 ? apiGames : mockGames
-
-  const filteredGames = category === 'all'
-    ? games
-    : games.filter((g: { category: string }) => g.category === category)
-
   return (
-    <div className="min-h-screen bg-[#1a1a2e]">
+    <div className="min-h-screen">
       {/* Hero */}
-      <div className="relative bg-gradient-to-r from-[#0f3460] via-[#16213e] to-[#1a1a2e] py-16 px-4 overflow-hidden">
-        <div className="absolute inset-0 opacity-20" style={{
-          backgroundImage: 'radial-gradient(circle at 30% 50%, #00ff88 0%, transparent 50%), radial-gradient(circle at 70% 50%, #0f3460 0%, transparent 50%)'
-        }} />
-        <div className="relative max-w-7xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-black text-white mb-4">
-            Play & <span className="text-[#00ff88]">Win Big</span>
-          </h1>
-          <p className="text-gray-300 text-lg md:text-xl mb-8 max-w-2xl mx-auto">
-            Thousands of games. Instant payouts. Join over 1 million players worldwide.
-          </p>
-          <div className="flex flex-wrap justify-center gap-4 text-sm text-gray-400">
-            <span className="flex items-center gap-2"><span className="text-[#00ff88]">✓</span> Licensed & Regulated</span>
-            <span className="flex items-center gap-2"><span className="text-[#00ff88]">✓</span> Instant Crypto Withdrawals</span>
-            <span className="flex items-center gap-2"><span className="text-[#00ff88]">✓</span> 24/7 Support</span>
-          </div>
+      <section className="relative h-[500px] flex items-center overflow-hidden">
+        <ParticlesBg />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-dark-900/50 to-dark-900" />
+        <div className="relative max-w-7xl mx-auto px-4 w-full">
+          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+            <motion.p className="text-[#00ff88] text-sm font-medium tracking-widest uppercase mb-3"
+              animate={{ opacity: [0.5, 1, 0.5] }} transition={{ duration: 2, repeat: Infinity }}>
+              ● Live Casino
+            </motion.p>
+            <h1 className="text-5xl md:text-7xl font-bold mb-4">
+              <span className="gradient-text">Win Crypto.</span>
+              <br /><span className="text-white">Play Now.</span>
+            </h1>
+            <p className="text-white/50 text-lg mb-8 max-w-md">
+              16+ games · 8 providers · Instant withdrawals
+            </p>
+            <div className="flex flex-wrap gap-4 items-center">
+              <a href="#games" className="bg-[#00ff88] text-black font-bold px-8 py-4 rounded-xl glow-green hover:scale-105 transition-transform inline-block">
+                Play Now →
+              </a>
+              <div className="glass rounded-xl px-6 py-4 neon-border">
+                <div className="text-white/40 text-xs uppercase tracking-wider">Paid out today</div>
+                <AnimatedCounter value={payout} prefix="$" decimals={2} className="text-[#00ff88] font-bold font-mono text-xl text-glow-green" />
+              </div>
+            </div>
+          </motion.div>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Winners ticker */}
+      <WinnersTicker />
+
+      {/* Games section */}
+      <section id="games" className="max-w-7xl mx-auto px-4 py-12">
         {/* Category tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2 mb-8 scrollbar-hide">
-          {categories.map((cat) => (
-            <button
-              key={cat.key}
-              onClick={() => setCategory(cat.key)}
-              className={`flex-shrink-0 px-5 py-2.5 rounded-full font-medium text-sm transition-all ${
-                category === cat.key
-                  ? 'bg-[#00ff88] text-[#1a1a2e]'
-                  : 'bg-[#16213e] text-gray-400 hover:text-white border border-white/10 hover:border-white/20'
+        <div className="flex flex-wrap gap-2 mb-6">
+          {CATEGORIES.map((cat) => (
+            <motion.button
+              key={cat.id}
+              onClick={() => setCategory(cat.id)}
+              whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+              className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all flex items-center gap-2 ${
+                category === cat.id
+                  ? 'bg-[#00ff88] text-black glow-green'
+                  : 'glass text-white/60 hover:text-white hover:bg-white/5'
               }`}
             >
-              {cat.label}
-            </button>
+              <span>{cat.icon}</span>{cat.label}
+            </motion.button>
           ))}
+          {/* Search */}
+          <div className="ml-auto relative">
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search games..."
+              className="glass rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-[#00ff88]/40 w-48 border border-white/5"
+            />
+            {search && <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/60">✕</button>}
+          </div>
         </div>
 
-        {/* Game grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 md:gap-4">
-          {isLoading
-            ? Array.from({ length: 10 }).map((_, i) => <SkeletonCard key={i} />)
-            : filteredGames.map((game: { id: string; name: string; provider: string; category: string; imageUrl?: string; rtp?: number }) => (
-                <GameCard key={game.id} {...game} />
-              ))
-          }
+        {/* Grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+          {filtered.map((game, i) => <GameCard key={game.id} game={game} index={i} />)}
         </div>
 
-        {!isLoading && filteredGames.length === 0 && (
-          <div className="text-center py-16 text-gray-500">
-            No games found in this category.
+        {filtered.length === 0 && (
+          <div className="text-center py-20 text-white/30">
+            <div className="text-5xl mb-4">🔍</div>
+            <p>No games found for "{search}"</p>
           </div>
         )}
-      </div>
+      </section>
+
+      {/* Providers */}
+      <section className="max-w-7xl mx-auto px-4 py-8 border-t border-white/5">
+        <h2 className="text-white/40 text-xs uppercase tracking-widest text-center mb-6">Powered by top providers</h2>
+        <div className="flex flex-wrap justify-center gap-4">
+          {mockProviders.map((p) => (
+            <motion.div key={p} whileHover={{ scale: 1.05, borderColor: 'rgba(0,255,136,0.3)' }}
+              className="glass rounded-xl px-5 py-3 text-white/50 text-sm font-medium transition-all">
+              {p}
+            </motion.div>
+          ))}
+        </div>
+      </section>
     </div>
   )
 }

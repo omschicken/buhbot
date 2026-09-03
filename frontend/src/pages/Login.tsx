@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/useAuthStore'
 import { useUIStore } from '../store/useUIStore'
 import { getBalance } from '../api/wallet'
@@ -8,6 +9,7 @@ import { login } from '../api/auth'
 import RouletteBg from '../effects/RouletteBg'
 
 export default function Login() {
+  const { t } = useTranslation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,10 +29,10 @@ export default function Login() {
         const balRes = await getBalance()
         setBalance(balRes.data?.balance ?? 0)
       } catch { setBalance(0) }
-      addToast('Welcome back!', 'success')
+      addToast(t('auth.welcome'), 'success')
       nav('/')
     } catch (err: any) {
-      const msg = err.response?.data?.error || err.response?.data?.message || 'Invalid credentials'
+      const msg = err.response?.data?.error || err.response?.data?.message || t('auth.invalidCredentials')
       addToast(msg, 'error')
     } finally { setLoading(false) }
   }
@@ -52,24 +54,24 @@ export default function Login() {
         </div>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div>
-            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Email</label>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>{t('auth.email')}</label>
             <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required style={inputStyle} placeholder="you@example.com"
               onFocus={(e) => (e.target.style.borderColor = 'rgba(228,168,50,0.5)')}
               onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
           </div>
           <div>
-            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Password</label>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>{t('auth.password')}</label>
             <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required style={inputStyle} placeholder="••••••••"
               onFocus={(e) => (e.target.style.borderColor = 'rgba(228,168,50,0.5)')}
               onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
           </div>
           <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={loading}
             style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, padding: '11px', borderRadius: 8, border: 'none', width: '100%', marginTop: 4, opacity: loading ? 0.7 : 1 }}>
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loading ? t('auth.signingIn') : t('auth.signIn')}
           </motion.button>
         </form>
         <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#444' }}>
-          No account? <Link to="/register" style={{ color: '#e4a832' }}>Sign up</Link>
+          {t('auth.noAccount')} <Link to="/register" style={{ color: '#e4a832' }}>{t('auth.signUp')}</Link>
         </div>
       </motion.div>
     </div>

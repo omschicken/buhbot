@@ -1,11 +1,56 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useJackpot, useOnlinePlayers } from '../../hooks/useLiveCounter'
 import { getBalance } from '../../api/wallet'
 
+const LANGS = [
+  { code: 'en', flag: '🇬🇧', label: 'EN' },
+  { code: 'ru', flag: '🇷🇺', label: 'RU' },
+  { code: 'tr', flag: '🇹🇷', label: 'TR' },
+  { code: 'pt', flag: '🇧🇷', label: 'PT' },
+]
+
+function LangSwitcher() {
+  const { i18n } = useTranslation()
+  const [open, setOpen] = useState(false)
+  const current = LANGS.find((l) => l.code === i18n.language) || LANGS[0]
+
+  return (
+    <div style={{ position: 'relative' }}>
+      <button onClick={() => setOpen((v) => !v)} style={{
+        display: 'flex', alignItems: 'center', gap: 4, background: '#1e1e1e',
+        border: '1px solid #2a2a2a', borderRadius: 6, padding: '5px 8px',
+        color: '#aaa', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+      }}>
+        {current.flag} {current.label} ▾
+      </button>
+      {open && (
+        <div style={{
+          position: 'absolute', top: '110%', right: 0, background: '#1a1a1a',
+          border: '1px solid #2a2a2a', borderRadius: 8, overflow: 'hidden', zIndex: 200, minWidth: 80,
+        }}>
+          {LANGS.map((l) => (
+            <button key={l.code} onClick={() => { i18n.changeLanguage(l.code); setOpen(false) }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6, width: '100%',
+                padding: '8px 12px', background: i18n.language === l.code ? '#252525' : 'transparent',
+                border: 'none', color: i18n.language === l.code ? '#e4a832' : '#888',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}>
+              {l.flag} {l.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function Navbar() {
+  const { t } = useTranslation()
   const { isAuthenticated, balance, setBalance, logout, user } = useAuthStore()
   const jackpot = useJackpot()
   const online = useOnlinePlayers()
@@ -21,9 +66,9 @@ export default function Navbar() {
   }, [isAuthenticated])
 
   const links = [
-    { to: '/', label: 'Lobby' },
-    { to: '/bonuses', label: 'Bonuses' },
-    { to: '/affiliate', label: 'Affiliate' },
+    { to: '/', label: t('nav.home') },
+    { to: '/bonuses', label: t('nav.bonuses') },
+    { to: '/affiliate', label: t('nav.affiliate') },
   ]
 
   return (
@@ -64,6 +109,8 @@ export default function Navbar() {
           JP ${jackpot.toLocaleString()}
         </motion.div>
 
+        <LangSwitcher />
+
         {isAuthenticated ? (
           <>
             <div style={{ background: '#1e1e1e', border: '1px solid #2a2a2a', borderRadius: 7, padding: '6px 14px', fontSize: 13, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
@@ -75,7 +122,7 @@ export default function Navbar() {
               animation: 'deposit-pulse 3s ease-in-out infinite',
               position: 'relative', overflow: 'hidden',
             }}>
-              <span style={{ position: 'relative', zIndex: 1 }}>Deposit</span>
+              <span style={{ position: 'relative', zIndex: 1 }}>{t('wallet.deposit')}</span>
               <span style={{
                 position: 'absolute', top: 0, left: '-100%', width: '40%', height: '100%',
                 background: 'rgba(255,255,255,0.25)', transform: 'skewX(-20deg)',
@@ -86,13 +133,13 @@ export default function Navbar() {
               {user?.username?.[0]?.toUpperCase() || 'U'}
             </Link>
             <button onClick={() => { logout(); nav('/login') }} style={{ fontSize: 11, color: '#444', background: 'none', border: 'none', padding: '4px 8px' }}>
-              Logout
+              {t('nav.logout')}
             </button>
           </>
         ) : (
           <>
-            <Link to="/login" style={{ fontSize: 12, color: '#888', padding: '6px 14px' }}>Login</Link>
-            <Link to="/register" style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '7px 16px', borderRadius: 7 }}>Sign Up</Link>
+            <Link to="/login" style={{ fontSize: 12, color: '#888', padding: '6px 14px' }}>{t('nav.login')}</Link>
+            <Link to="/register" style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '7px 16px', borderRadius: 7 }}>{t('nav.register')}</Link>
           </>
         )}
       </div>

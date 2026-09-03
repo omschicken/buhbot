@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import Layout from './components/layout/Layout'
+import AdminLayout from './components/layout/AdminLayout'
+import AdminGuard from './components/ui/AdminGuard'
 import ProtectedRoute from './components/ui/ProtectedRoute'
 import Cursor from './effects/Cursor'
 import Particles from './effects/Particles'
@@ -13,6 +15,14 @@ import Wallet from './pages/Wallet'
 import Profile from './pages/Profile'
 import Bonuses from './pages/Bonuses'
 import Affiliate from './pages/Affiliate'
+import AdminDashboard from './pages/admin/Dashboard'
+import AdminPlayers from './pages/admin/Players'
+import AdminPlayerDetail from './pages/admin/PlayerDetail'
+import AdminWithdrawals from './pages/admin/Withdrawals'
+import AdminKYC from './pages/admin/KYC'
+import AdminTransactions from './pages/admin/Transactions'
+import AdminBonuses from './pages/admin/Bonuses'
+import AdminSettings from './pages/admin/Settings'
 import './styles/globals.css'
 import './styles/animations.css'
 
@@ -61,6 +71,16 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/game/:id" element={<ProtectedRoute><Game /></ProtectedRoute>} />
+          <Route path="/admin" element={<AdminGuard><AdminLayout /></AdminGuard>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="players" element={<AdminPlayers />} />
+            <Route path="players/:id" element={<AdminPlayerDetail />} />
+            <Route path="withdrawals" element={<AdminWithdrawals />} />
+            <Route path="kyc" element={<AdminKYC />} />
+            <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="bonuses" element={<AdminBonuses />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>

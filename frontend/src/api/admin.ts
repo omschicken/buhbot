@@ -12,7 +12,7 @@ export const addNote = (id: string, note: string) =>
   api.post(`/admin/players/${id}/note`, { note })
 
 export const getWithdrawals = (status = '') => api.get('/admin/withdrawals', { params: { status } })
-export const approveWithdrawal = (id: string) => api.post(`/admin/withdrawals/${id}/approve`)
+export const approveWithdrawal = (id: string, txHash?: string) => api.post(`/admin/withdrawals/${id}/approve`, txHash ? { txHash } : {})
 export const rejectWithdrawal = (id: string, reason: string) =>
   api.post(`/admin/withdrawals/${id}/reject`, { reason })
 

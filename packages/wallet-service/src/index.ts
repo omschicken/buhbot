@@ -334,6 +334,6 @@ cron.schedule('0 6 * * *', async () => {
   } catch (e) { console.error('Daily stats error:', e); }
 });
 
-setupBotCommands();
+setupBotCommands(pool);
 app.listen(PORT, () => console.log(`wallet-service running on port ${PORT}`));
 export default app;

@@ -12,7 +12,7 @@ async function send(msg: string, reply_markup?: any) {
   catch (e: any) { console.error('Telegram send error:', e.message); }
 }
 
-export function setupBotCommands() {
+export function setupBotCommands(pool?: any) {
   if (!bot) return;
 
   bot.on('message', async (msg: any) => {
@@ -51,10 +51,61 @@ export function setupBotCommands() {
         text: '💸 Откройте админку для управления выводами:',
         reply_markup: {
           inline_keyboard: [[
-            { text: '📱 Выводы', web_app: { url: `${MINI_APP_URL}/#/withdrawals` } }
+            { text: '📱 Выводы', web_app: { url: MINI_APP_URL } }
           ]]
         }
       });
+    }
+  });
+
+  bot.on('callback_query', async (query: any) => {
+    const data: string = query?.data || '';
+    const chatId = query?.message?.chat?.id;
+    const messageId = query?.message?.message_id;
+    if (!data || !chatId || !pool) return;
+
+    const answerOk = (text: string) => bot!.api.answerCallbackQuery({ callback_query_id: query.id, text });
+    const answerErr = (text: string) => bot!.api.answerCallbackQuery({ callback_query_id: query.id, text, show_alert: true });
+    const clearButtons = () => bot!.api.editMessageReplyMarkup({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+
+    if (data.startsWith('approve_')) {
+      const withdrawalId = data.replace('approve_', '');
+      try {
+        const wr = await pool.query('SELECT * FROM withdrawal_requests WHERE id=$1', [withdrawalId]);
+        if (!wr.rows[0]) { await answerErr('❌ Не найден'); return; }
+        await pool.query("UPDATE withdrawal_requests SET status='approved' WHERE id=$1", [withdrawalId]);
+        notifyWithdrawalApproved({
+          username: wr.rows[0].user_id,
+          amount: Number(wr.rows[0].amount),
+          coin: wr.rows[0].method || 'BTC',
+          address: wr.rows[0].destination || '',
+        }).catch(console.error);
+        await answerOk('✅ Вывод одобрен!');
+        await clearButtons();
+      } catch (e: any) {
+        await answerErr('❌ Ошибка БД');
+      }
+    }
+
+    if (data.startsWith('reject_')) {
+      const withdrawalId = data.replace('reject_', '');
+      try {
+        const wr = await pool.query('SELECT * FROM withdrawal_requests WHERE id=$1', [withdrawalId]);
+        if (!wr.rows[0]) { await answerErr('❌ Не найден'); return; }
+        if (wr.rows[0].status === 'pending') {
+          await pool.query('UPDATE wallets SET balance=balance+$1 WHERE user_id=$2', [wr.rows[0].amount, wr.rows[0].user_id]);
+        }
+        await pool.query("UPDATE withdrawal_requests SET status='rejected', reason=$1 WHERE id=$2", ['Отклонено администратором', withdrawalId]);
+        notifyWithdrawalRejected({
+          username: wr.rows[0].user_id,
+          amount: Number(wr.rows[0].amount),
+          reason: 'Отклонено администратором',
+        }).catch(console.error);
+        await answerOk('✅ Вывод отклонён, средства возвращены!');
+        await clearButtons();
+      } catch (e: any) {
+        await answerErr('❌ Ошибка БД');
+      }
     }
   });
 }
@@ -91,7 +142,7 @@ export async function notifyWithdrawalRequest(data: {
         { text: '❌ Отклонить', callback_data: `reject_${data.withdrawalId}` }
       ],
       [
-        { text: '📱 Открыть админку', web_app: { url: `${MINI_APP_URL}/#/withdrawals` } }
+        { text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }
       ]
     ]
   });

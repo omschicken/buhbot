@@ -15,9 +15,10 @@ async function send(msg: string, reply_markup?: any) {
 export function setupBotCommands() {
   if (!bot) return;
 
-  bot.on('message', async (msg) => {
-    const chatId = msg.chat.id;
-    const text = msg.text || '';
+  bot.on('message', async (msg: any) => {
+    const chatId = msg?.chat?.id || msg?.message?.chat?.id;
+    const text = msg?.text || msg?.message?.text || '';
+    if (!chatId) return;
 
     if (text === '/start') {
       await bot.api.sendMessage({

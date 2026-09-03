@@ -73,6 +73,9 @@ app.use(proxy(AFFILIATE_URL, '/api/affiliate', { '^/api/affiliate': '/affiliate'
 // Admin routes — auth middleware
 app.use('/api/admin', verifyToken, adminOnly);
 
+// Admin routes — balance adjustment (wallet-service) — must be before general players proxy
+app.use('/api/admin/players/:id/balance', proxy(WALLET_URL, '/api/admin/players', { '^/api/admin/players': '/admin/players' }));
+
 // Admin routes — user
 app.use(proxy(USER_URL, '/api/admin/players', { '^/api/admin': '/admin' }));
 app.use(proxy(USER_URL, '/api/admin/stats-users', { '^/api/admin/stats-users': '/admin/stats' }));

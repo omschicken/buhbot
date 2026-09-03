@@ -6,6 +6,37 @@ import { HDWalletService, COINS, CoinSymbol } from '../services/hdwallet.service
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false });
 
 async function main() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS crypto_wallets (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      coin TEXT UNIQUE NOT NULL,
+      xpub TEXT NOT NULL,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE TABLE IF NOT EXISTS player_addresses (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL,
+      coin TEXT NOT NULL,
+      address TEXT NOT NULL,
+      address_index INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(user_id, coin),
+      UNIQUE(coin, address)
+    );
+    CREATE TABLE IF NOT EXISTS crypto_deposits (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL,
+      coin TEXT NOT NULL,
+      tx_hash TEXT NOT NULL,
+      amount NUMERIC(20,8) NOT NULL,
+      amount_usd NUMERIC(18,2) NOT NULL,
+      status TEXT DEFAULT 'pending',
+      credited BOOLEAN DEFAULT false,
+      created_at TIMESTAMPTZ DEFAULT NOW(),
+      UNIQUE(tx_hash, coin)
+    );
+  `);
+
   const svc = new HDWalletService(pool);
 
   console.log('\n=== HD WALLET INITIALIZATION ===\n');

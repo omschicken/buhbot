@@ -17,7 +17,7 @@ export default function KYC() {
   const qc = useQueryClient()
   const { data, isLoading, isError } = useQuery({
     queryKey: ['kyc'],
-    queryFn: () => getKYCPending().then((r) => r.data?.items || r.data || []),
+    queryFn: () => getKYCPending().then((r) => r.data?.records || r.data?.items || r.data || []),
   })
   const [acting, setActing] = useState<string | null>(null)
 

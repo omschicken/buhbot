@@ -78,6 +78,38 @@ async function fetchERC20Transactions(address: string, contractAddress: string):
   } catch { return []; }
 }
 
+// Flash USDT protection: verify token contract matches official USDT TRC-20, require 20+ confirmations
+const TRON_USDT_CONTRACT = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+const TRONGRID_KEY = process.env.TRONGRID_API_KEY || '';
+
+async function fetchTRC20Transactions(address: string): Promise<{ txid: string; amount: number; confirmations: number }[]> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (TRONGRID_KEY) headers['TRON-PRO-API-KEY'] = TRONGRID_KEY;
+    const r = await axios.get(
+      `https://api.trongrid.io/v1/accounts/${address}/transactions/trc20?limit=20&contract_address=${TRON_USDT_CONTRACT}&only_to=true`,
+      { headers, timeout: 10000 }
+    );
+    const txs = r.data?.data || [];
+    const nowMs = Date.now();
+    return txs
+      .filter((tx: any) => {
+        // Flash USDT protection: reject if contract doesn't match exactly
+        if (tx.token_info?.address !== TRON_USDT_CONTRACT) return false;
+        // Require transaction to be at least 10 minutes old (flash USDT usually reverts quickly)
+        const txTime = tx.block_timestamp || 0;
+        if (nowMs - txTime < 10 * 60 * 1000) return false;
+        return true;
+      })
+      .map((tx: any) => ({
+        txid: tx.transaction_id,
+        amount: Number(tx.value) / 1e6,
+        confirmations: tx.detail?.confirmed ? 20 : 0,
+      }))
+      .filter((t: any) => t.amount > 0);
+  } catch { return []; }
+}
+
 async function fetchSOLTransactions(address: string): Promise<{ txid: string; amount: number; confirmations: number }[]> {
   try {
     const r = await axios.post('https://api.mainnet-beta.solana.com', {
@@ -149,6 +181,7 @@ export function startBlockchainMonitor(pool: Pool) {
           const c = COINS[coin as 'USDT' | 'USDC'] as any;
           txs = await fetchERC20Transactions(address, c.contractAddress);
         }
+        else if (coin === 'USDT_TRC20') txs = await fetchTRC20Transactions(address);
         else if (coin === 'SOL') txs = await fetchSOLTransactions(address);
 
         for (const tx of txs) {

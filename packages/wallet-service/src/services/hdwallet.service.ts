@@ -4,11 +4,13 @@ import HDKey from 'hdkey';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ethers } from 'ethers';
 import tiny from 'tiny-secp256k1';
+import bs58check from 'bs58check';
 
 export const COINS = {
   BTC: { symbol: 'BTC', name: 'Bitcoin', network: 'mainnet', confirmations: 3, path: "m/84'/0'/0'/0" },
   ETH: { symbol: 'ETH', name: 'Ethereum', network: 'mainnet', confirmations: 12, path: "m/44'/60'/0'/0" },
-  USDT: { symbol: 'USDT', name: 'Tether USD', network: 'erc20', confirmations: 12, path: "m/44'/60'/0'/0", contractAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7' },
+  USDT: { symbol: 'USDT', name: 'Tether ERC-20', network: 'erc20', confirmations: 20, path: "m/44'/60'/0'/0", contractAddress: '0xdAC17F958D2ee523a2206206994597C13D831ec7' },
+  USDT_TRC20: { symbol: 'USDT_TRC20', name: 'Tether TRC-20', network: 'trc20', confirmations: 20, path: "m/44'/195'/0'/0", contractAddress: 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t' },
   USDC: { symbol: 'USDC', name: 'USD Coin', network: 'erc20', confirmations: 12, path: "m/44'/60'/0'/0", contractAddress: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' },
   LTC: { symbol: 'LTC', name: 'Litecoin', network: 'litecoin', confirmations: 6, path: "m/44'/2'/0'/0" },
   SOL: { symbol: 'SOL', name: 'Solana', network: 'solana', confirmations: 1, path: "m/44'/501'/0'/0'" },
@@ -61,6 +63,15 @@ export class HDWalletService {
 
     if (coin === 'ETH' || coin === 'USDT' || coin === 'USDC') {
       return ethers.computeAddress('0x' + pubkey.toString('hex'));
+    }
+
+    if (coin === 'USDT_TRC20') {
+      // TRX address: Base58Check(0x41 + last20bytes(keccak256(uncompressed_pubkey[1:]))
+      const uncompressed = tiny.pointCompress(pubkey, false);
+      const hash = ethers.keccak256(uncompressed.slice(1));
+      const addrHex = hash.slice(-40);
+      const payload = Buffer.from('41' + addrHex, 'hex');
+      return bs58check.encode(payload);
     }
 
     if (coin === 'SOL') {

@@ -90,7 +90,29 @@ app.post('/api/admin/players/:id/balance', verifyToken, adminOnly, express.json(
 app.use(proxy(USER_URL, '/api/admin/players', { '^/api/admin': '/admin' }));
 app.use(proxy(USER_URL, '/api/admin/stats-users', { '^/api/admin/stats-users': '/admin/stats' }));
 
-// Admin routes — wallet
+// Admin routes — wallet (direct routes for POST with :id params)
+app.post('/api/admin/withdrawals/:id/approve', verifyToken, adminOnly, express.json(), async (req, res) => {
+  try {
+    const r = await fetch(`${WALLET_URL}/admin/withdrawals/${req.params.id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/withdrawals/:id/reject', verifyToken, adminOnly, express.json(), async (req, res) => {
+  try {
+    const r = await fetch(`${WALLET_URL}/admin/withdrawals/${req.params.id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
 app.use(proxy(WALLET_URL, ['/api/admin/withdrawals', '/api/admin/transactions'], { '^/api/admin': '/admin' }));
 app.use(proxy(WALLET_URL, '/api/admin/stats-wallet', { '^/api/admin/stats-wallet': '/admin/stats' }));
 

@@ -20,7 +20,7 @@ const AFFILIATE_URL = process.env.AFFILIATE_SERVICE_URL || 'http://affiliate-ser
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
 app.use(helmet({ contentSecurityPolicy: false }));
-app.use(cors({ origin: CORS_ORIGIN, credentials: true }));
+app.use(cors({ origin: '*', credentials: false }));
 
 app.get('/health', (_req, res) => res.json({ status: 'ok', service: 'api-gateway', timestamp: new Date().toISOString() }));
 app.get('/', (_req, res) => res.json({ service: 'api-gateway', version: '1.0.0' }));

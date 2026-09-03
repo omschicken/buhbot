@@ -4,6 +4,9 @@ import helmet from 'helmet';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 import jwt from 'jsonwebtoken';
+import QRCode from 'qrcode';
+import { HDWalletService, COINS, CoinSymbol } from './services/hdwallet.service';
+import { startBlockchainMonitor } from './services/blockchain.monitor';
 
 dotenv.config();
 
@@ -11,12 +14,41 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret123casino2024';
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false });
+const hdWallet = new HDWalletService(pool);
 
 app.use(helmet());
 app.use(cors());
 app.use(express.json());
 
 pool.query(`
+  CREATE TABLE IF NOT EXISTS crypto_wallets (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    coin TEXT UNIQUE NOT NULL,
+    xpub TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+  );
+  CREATE TABLE IF NOT EXISTS player_addresses (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    coin TEXT NOT NULL,
+    address TEXT NOT NULL,
+    address_index INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(user_id, coin),
+    UNIQUE(coin, address)
+  );
+  CREATE TABLE IF NOT EXISTS crypto_deposits (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL,
+    coin TEXT NOT NULL,
+    tx_hash TEXT NOT NULL,
+    amount NUMERIC(20,8) NOT NULL,
+    amount_usd NUMERIC(18,2) NOT NULL,
+    status TEXT DEFAULT 'pending',
+    credited BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(tx_hash, coin)
+  );
   CREATE TABLE IF NOT EXISTS wallets (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID UNIQUE NOT NULL,
@@ -204,6 +236,53 @@ app.get('/admin/transactions', auth, adminOnly, async (req, res) => {
     res.json({ transactions: result.rows });
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
+
+// Deposit routes
+app.get('/wallet/deposit/address/:coin', auth, async (req, res) => {
+  try {
+    const coin = req.params.coin.toUpperCase() as CoinSymbol;
+    if (!COINS[coin]) { res.status(400).json({ error: 'Unsupported coin' }); return; }
+    const userId = (req as any).user.id;
+    const address = await hdWallet.getOrCreateAddress(userId, coin);
+    const qr = await QRCode.toDataURL(address);
+    const conf = COINS[coin];
+    res.json({ coin, address, qr, confirmations: conf.confirmations, name: conf.name });
+  } catch (err: any) {
+    if (err.message?.includes('not initialized')) {
+      res.status(503).json({ error: `${req.params.coin} wallet not initialized. Run init-wallets script.` });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+app.get('/wallet/deposit/history', auth, async (req, res) => {
+  try {
+    const userId = (req as any).user.id;
+    const result = await pool.query(
+      'SELECT * FROM crypto_deposits WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50',
+      [userId]
+    );
+    res.json({ deposits: result.rows });
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/wallet/deposit/:txHash/status', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM crypto_deposits WHERE tx_hash=$1 AND user_id=$2',
+      [req.params.txHash, (req as any).user.id]
+    );
+    if (!result.rows[0]) { res.status(404).json({ error: 'Not found' }); return; }
+    res.json(result.rows[0]);
+  } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/wallet/coins', (_req, res) => {
+  res.json({ coins: Object.values(COINS).map(c => ({ symbol: c.symbol, name: c.name, confirmations: c.confirmations })) });
+});
+
+startBlockchainMonitor(pool);
 
 app.listen(PORT, () => console.log(`wallet-service running on port ${PORT}`));
 export default app;

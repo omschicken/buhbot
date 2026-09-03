@@ -37,7 +37,7 @@ export default function Profile() {
       {loading ? (
         <div style={{ color: '#444', fontSize: 13 }}>{t('common.loading')}</div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 }}>
+        <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 }}>
           {/* Profile card */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, textAlign: 'center' }}>
@@ -90,6 +90,11 @@ export default function Profile() {
           </div>
         </div>
       )}
+      <style>{`
+        @media (max-width: 768px) {
+          .profile-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

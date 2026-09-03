@@ -110,11 +110,11 @@ export default function Wallet() {
   ]
 
   return (
-    <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+    <div className="wallet-page" style={{ flex: 1, padding: 24, overflow: 'auto' }}>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{t('wallet.balance')}</h1>
 
       {/* Tab bar */}
-      <div style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4 }}>
+      <div className="wallet-tabs" style={{ display: 'flex', gap: 4, marginBottom: 24, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: 4, overflowX: 'auto', WebkitOverflowScrolling: 'touch' as any }}>
         {TABS.map((t2) => (
           <button key={t2.id} onClick={() => setTab(t2.id)}
             style={{ flex: 1, padding: '8px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
@@ -307,6 +307,12 @@ export default function Wallet() {
           </motion.div>
         )}
       </AnimatePresence>
+      <style>{`
+        @media (max-width: 768px) {
+          .wallet-page { padding: 12px !important; }
+          .wallet-tabs button { flex: none !important; white-space: nowrap; padding: 8px 16px !important; }
+        }
+      `}</style>
     </div>
   )
 }

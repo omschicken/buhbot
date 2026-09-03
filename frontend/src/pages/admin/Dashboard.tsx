@@ -44,7 +44,7 @@ export default function AdminDashboard() {
       {loading ? <div style={{ color: '#444' }}>Loading...</div> : (
         <>
           {/* Stat cards */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 24 }}>
+          <div className="admin-stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 12, marginBottom: 24 }}>
             {cards.map(([label, value, color]) => (
               <div key={label as string} style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: '16px 14px' }}>
                 <div style={{ fontSize: 20, fontWeight: 800, color: color as string }}>{value as string | number}</div>
@@ -68,7 +68,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+          <div className="admin-lists-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
             {/* Recent registrations */}
             <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 12, overflow: 'hidden' }}>
               <div style={{ padding: '14px 18px', borderBottom: '1px solid #222', fontSize: 12, fontWeight: 700 }}>Recent Registrations</div>
@@ -101,6 +101,12 @@ export default function AdminDashboard() {
           </div>
         </>
       )}
+      <style>{`
+        @media (max-width: 768px) {
+          .admin-stats-grid { grid-template-columns: repeat(2, 1fr) !important; }
+          .admin-lists-grid { grid-template-columns: 1fr !important; }
+        }
+      `}</style>
     </div>
   )
 }

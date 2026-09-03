@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/useAuthStore'
 import { useUIStore } from '../store/useUIStore'
 import { getMe } from '../api/auth'
@@ -10,7 +9,6 @@ interface KYC { level: number; status: string }
 interface VIP { level: number; xp: number; nextXp: number; name: string }
 
 export default function Profile() {
-  const { t } = useTranslation()
   const { user, balance, setUser, token } = useAuthStore()
   const { addToast } = useUIStore()
   const [kyc, setKyc] = useState<KYC | null>(null)
@@ -28,14 +26,15 @@ export default function Profile() {
     ]).finally(() => setLoading(false))
   }, [])
 
-  const vipPct = vip ? Math.round((vip.xp / vip.nextXp) * 100) : 0
+  const vipPct = vip && vip.nextXp > 0 ? Math.min(100, Math.round((vip.xp / vip.nextXp) * 100)) : 0
+  const safeBalance = typeof balance === 'number' ? balance : 0
 
   return (
-    <div>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{t('profile.title')}</h1>
+    <div style={{ padding: 24, paddingBottom: 80 }}>
+      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>Profile</h1>
 
       {loading ? (
-        <div style={{ color: '#444', fontSize: 13 }}>{t('common.loading')}</div>
+        <div style={{ color: '#444', fontSize: 13 }}>Loading...</div>
       ) : (
         <div className="profile-grid" style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 16 }}>
           {/* Profile card */}
@@ -54,37 +53,37 @@ export default function Profile() {
                   <div style={{ background: '#111', borderRadius: 4, height: 5, marginBottom: 4 }}>
                     <div style={{ height: '100%', background: '#e4a832', borderRadius: 4, width: `${vipPct}%`, transition: 'width 0.5s' }} />
                   </div>
-                  <div style={{ fontSize: 10, color: '#444' }}>{vip.xp.toLocaleString()} / {vip.nextXp.toLocaleString()} XP</div>
+                  <div style={{ fontSize: 10, color: '#444' }}>{(vip.xp || 0).toLocaleString()} / {(vip.nextXp || 0).toLocaleString()} XP</div>
                 </div>
               )}
             </div>
 
             {[
-              [t('wallet.balance'), `$${balance.toFixed(2)}`, 'var(--gold)'],
-              [t('profile.kyc'), kyc ? `Level ${kyc.level} · ${kyc.status}` : t('profile.notVerified'), kyc?.status === 'approved' ? 'var(--green)' : 'var(--text3)'],
-              [t('profile.role'), user?.role || 'user', 'var(--text)'],
+              ['Balance', `$${safeBalance.toFixed(2)}`, 'var(--gold)'],
+              ['KYC', kyc ? `Level ${kyc.level} · ${kyc.status}` : 'Not Verified', kyc?.status === 'approved' ? 'var(--green)' : 'var(--text3)'],
+              ['Role', user?.role || 'user', 'var(--text)'],
             ].map(([label, value, color]) => (
-              <div key={label as string} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', justifyContent: 'space-between' }}>
+              <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px 16px', display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ fontSize: 12, color: 'var(--text3)' }}>{label}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: color as string }}>{value}</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color }}>{value}</span>
               </div>
             ))}
           </div>
 
           {/* Settings */}
           <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>{t('profile.account')}</h2>
+            <h2 style={{ fontSize: 15, fontWeight: 600, marginBottom: 20 }}>Account Info</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {[t('auth.username'), t('auth.email')].map((label) => (
+              {['Username', 'Email'].map((label) => (
                 <div key={label}>
                   <label style={{ display: 'block', fontSize: 12, color: 'var(--text3)', marginBottom: 6 }}>{label}</label>
-                  <input readOnly defaultValue={label === t('auth.username') ? user?.username : user?.email}
+                  <input readOnly defaultValue={label === 'Username' ? user?.username : user?.email}
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 8, background: 'var(--bg2)', border: '1px solid var(--border2)', color: 'var(--text)', fontSize: 13, outline: 'none' }} />
                 </div>
               ))}
               <button onClick={() => addToast('Contact support to update profile', 'success')}
                 style={{ alignSelf: 'flex-start', padding: '10px 24px', borderRadius: 8, background: 'var(--gold)', color: '#000', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>
-                {t('profile.saveChanges')}
+                Save Changes
               </button>
             </div>
           </div>

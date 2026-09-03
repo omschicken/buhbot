@@ -8,90 +8,81 @@ const bot = TOKEN ? new Bot(TOKEN) : null;
 
 async function send(msg: string, reply_markup?: any) {
   if (!bot || !ADMIN_CHAT_ID) return;
-  try { await bot.api.sendMessage({ chat_id: ADMIN_CHAT_ID, text: msg, parse_mode: 'Markdown', reply_markup }); }
-  catch (e: any) { console.error('Telegram send error:', e.message); }
+  try {
+    await bot.api.sendMessage({ chat_id: ADMIN_CHAT_ID, text: msg, parse_mode: 'Markdown', reply_markup });
+  } catch (e: any) { console.error('Telegram send error:', e.message); }
 }
 
 export function setupBotCommands(pool?: any) {
   if (!bot) return;
 
-  bot.on('message', async (msg: any) => {
-    const chatId = msg?.chat?.id || msg?.message?.chat?.id;
-    const text = msg?.text || msg?.message?.text || '';
+  // v2: ctx.message, ctx.callbackQuery etc.
+  bot.on('message', async (ctx: any) => {
+    const chatId = ctx.chat?.id ?? ctx.message?.chat?.id;
+    const text = ctx.message?.text ?? ctx.text ?? '';
     if (!chatId) return;
 
     if (text === '/start') {
-      await bot.api.sendMessage({
+      await bot!.api.sendMessage({
         chat_id: chatId,
-        text: '🎰 *Casino Admin Bot*\n\nКоманды:\n/stats — Статистика\n/pending — Pending выводы\n\nИли откройте админ панель:',
+        text: '🎰 *Casino Admin Bot*\n\nКоманды:\n/stats — Статистика\n/pending — Pending выводы',
         parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }
-          ]]
-        }
+        reply_markup: { inline_keyboard: [[{ text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }]] },
       });
-    }
-
-    if (text === '/stats') {
-      await bot.api.sendMessage({
+    } else if (text === '/stats') {
+      await bot!.api.sendMessage({
         chat_id: chatId,
-        text: '📊 Используйте админ панель для полной статистики:',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '📱 Открыть Stats', web_app: { url: MINI_APP_URL } }
-          ]]
-        }
+        text: '📊 Статистика в админ панели:',
+        reply_markup: { inline_keyboard: [[{ text: '📱 Открыть Stats', web_app: { url: MINI_APP_URL } }]] },
       });
-    }
-
-    if (text === '/pending') {
-      await bot.api.sendMessage({
+    } else if (text === '/pending') {
+      await bot!.api.sendMessage({
         chat_id: chatId,
-        text: '💸 Откройте админку для управления выводами:',
-        reply_markup: {
-          inline_keyboard: [[
-            { text: '📱 Выводы', web_app: { url: MINI_APP_URL } }
-          ]]
-        }
+        text: '💸 Управление выводами:',
+        reply_markup: { inline_keyboard: [[{ text: '📱 Выводы', web_app: { url: MINI_APP_URL } }]] },
       });
     }
   });
 
-  bot.on('callback_query', async (query: any) => {
-    const data: string = query?.data || '';
-    const chatId = query?.message?.chat?.id;
-    const messageId = query?.message?.message_id;
-    if (!data || !chatId || !pool) return;
+  bot.on('callback_query', async (ctx: any) => {
+    const data: string = ctx.callbackQuery?.data ?? ctx.data ?? '';
+    const chatId = ctx.callbackQuery?.message?.chat?.id ?? ctx.message?.chat?.id;
+    const messageId = ctx.callbackQuery?.message?.message_id ?? ctx.message?.message_id;
+    const queryId = ctx.callbackQuery?.id ?? ctx.id;
 
-    const answerOk = (text: string) => bot!.api.answerCallbackQuery({ callback_query_id: query.id, text });
-    const answerErr = (text: string) => bot!.api.answerCallbackQuery({ callback_query_id: query.id, text, show_alert: true });
+    if (!data || !chatId || !queryId) return;
+
+    const answerOk = (text: string) => bot!.api.answerCallbackQuery({ callback_query_id: queryId, text });
+    const answerErr = (text: string) => bot!.api.answerCallbackQuery({ callback_query_id: queryId, text, show_alert: true });
     const clearButtons = () => bot!.api.editMessageReplyMarkup({ chat_id: chatId, message_id: messageId, reply_markup: { inline_keyboard: [] } });
+
+    if (!pool) { await answerErr('❌ DB not connected'); return; }
 
     if (data.startsWith('approve_')) {
       const withdrawalId = data.replace('approve_', '');
       try {
         const wr = await pool.query('SELECT * FROM withdrawal_requests WHERE id=$1', [withdrawalId]);
         if (!wr.rows[0]) { await answerErr('❌ Не найден'); return; }
+        if (wr.rows[0].status !== 'pending') { await answerErr('⚠️ Уже обработан'); return; }
         await pool.query("UPDATE withdrawal_requests SET status='approved' WHERE id=$1", [withdrawalId]);
         notifyWithdrawalApproved({
           username: wr.rows[0].user_id,
           amount: Number(wr.rows[0].amount),
-          coin: wr.rows[0].method || 'BTC',
+          coin: wr.rows[0].method || 'crypto',
           address: wr.rows[0].destination || '',
         }).catch(console.error);
         await answerOk('✅ Вывод одобрен!');
         await clearButtons();
       } catch (e: any) {
+        console.error('approve callback error:', e);
         await answerErr('❌ Ошибка БД');
       }
-    }
-
-    if (data.startsWith('reject_')) {
+    } else if (data.startsWith('reject_')) {
       const withdrawalId = data.replace('reject_', '');
       try {
         const wr = await pool.query('SELECT * FROM withdrawal_requests WHERE id=$1', [withdrawalId]);
         if (!wr.rows[0]) { await answerErr('❌ Не найден'); return; }
+        if (wr.rows[0].status !== 'pending') { await answerErr('⚠️ Уже обработан'); return; }
         if (wr.rows[0].status === 'pending') {
           await pool.query('UPDATE wallets SET balance=balance+$1 WHERE user_id=$2', [wr.rows[0].amount, wr.rows[0].user_id]);
         }
@@ -104,10 +95,15 @@ export function setupBotCommands(pool?: any) {
         await answerOk('✅ Вывод отклонён, средства возвращены!');
         await clearButtons();
       } catch (e: any) {
+        console.error('reject callback error:', e);
         await answerErr('❌ Ошибка БД');
       }
     }
   });
+
+  // Start polling to receive updates
+  bot.startPolling().catch((e: any) => console.error('Bot polling error:', e.message));
+  console.log('Telegram bot started polling');
 }
 
 export async function notifyWithdrawalRequest(data: {
@@ -131,20 +127,16 @@ export async function notifyWithdrawalRequest(data: {
 📍 Адрес: \`${data.address}\`
 
 💼 Баланс игрока: $${data.userBalance.toFixed(2)}
-🕑 Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
-
-Перейди в админку для подтверждения.`;
+🕑 Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}`;
 
   await send(msg, {
     inline_keyboard: [
       [
         { text: '✅ Одобрить', callback_data: `approve_${data.withdrawalId}` },
-        { text: '❌ Отклонить', callback_data: `reject_${data.withdrawalId}` }
+        { text: '❌ Отклонить', callback_data: `reject_${data.withdrawalId}` },
       ],
-      [
-        { text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }
-      ]
-    ]
+      [{ text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }],
+    ],
   });
 }
 
@@ -211,9 +203,7 @@ export async function sendDailyStats(data: {
 🟢 Активных: ${data.activeUsers}`;
 
   await send(msg, {
-    inline_keyboard: [[
-      { text: '📱 Подробнее', web_app: { url: MINI_APP_URL } }
-    ]]
+    inline_keyboard: [[{ text: '📱 Подробнее', web_app: { url: MINI_APP_URL } }]],
   });
 }
 

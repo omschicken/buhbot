@@ -19,7 +19,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>((set) => ({
   user: null,
-  balance: 1240.50,
+  balance: 0,
   isAuthenticated: !!localStorage.getItem('casino_token'),
   token: localStorage.getItem('casino_token'),
   setUser: (user, token) => {

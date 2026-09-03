@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: 'https://api-gateaway-production-cd24.up.railway.app/api',
+  baseURL: `${import.meta.env.VITE_API_URL || 'https://api-gateaway-production-cd24.up.railway.app'}/api`,
   timeout: 10000,
 })
 

@@ -3,26 +3,35 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/useAuthStore'
 import { useUIStore } from '../store/useUIStore'
+import { getBalance } from '../api/wallet'
+import { login } from '../api/auth'
 import RouletteBg from '../effects/RouletteBg'
 
 export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
-  const { setUser } = useAuthStore()
+  const { setUser, setBalance } = useAuthStore()
   const { addToast } = useUIStore()
   const nav = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!email || !password) { addToast('Fill in all fields', 'error'); return }
     setLoading(true)
     try {
-      await new Promise((r) => setTimeout(r, 700))
-      setUser({ id: '1', email, username: email.split('@')[0], role: 'user' }, 'mock-token')
+      const res = await login(email, password)
+      const { token, user } = res.data
+      setUser({ id: user.id, email: user.email, username: user.username, role: user.role || 'user' }, token)
+      try {
+        const balRes = await getBalance()
+        setBalance(balRes.data?.balance ?? 0)
+      } catch { setBalance(0) }
       addToast('Welcome back!', 'success')
       nav('/')
-    } catch {
-      addToast('Invalid credentials', 'error')
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Invalid credentials'
+      addToast(msg, 'error')
     } finally { setLoading(false) }
   }
 
@@ -55,8 +64,8 @@ export default function Login() {
               onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
           </div>
           <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={loading}
-            style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, padding: '11px', borderRadius: 8, border: 'none', width: '100%', marginTop: 4 }}>
-            {loading ? '...' : 'Sign In'}
+            style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, padding: '11px', borderRadius: 8, border: 'none', width: '100%', marginTop: 4, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Signing in...' : 'Sign In'}
           </motion.button>
         </form>
         <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#444' }}>

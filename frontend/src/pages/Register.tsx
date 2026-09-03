@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useAuthStore } from '../store/useAuthStore'
 import { useUIStore } from '../store/useUIStore'
+import { register } from '../api/auth'
+import { getBalance } from '../api/wallet'
 import RouletteBg from '../effects/RouletteBg'
 
 export default function Register() {
   const [form, setForm] = useState({ email: '', username: '', password: '', confirm: '' })
   const [loading, setLoading] = useState(false)
-  const { setUser } = useAuthStore()
+  const { setUser, setBalance } = useAuthStore()
   const { addToast } = useUIStore()
   const nav = useNavigate()
   const setField = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -16,13 +18,22 @@ export default function Register() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (form.password !== form.confirm) { addToast('Passwords do not match', 'error'); return }
+    if (form.password.length < 6) { addToast('Password must be at least 6 characters', 'error'); return }
     setLoading(true)
     try {
-      await new Promise((r) => setTimeout(r, 700))
-      setUser({ id: '1', email: form.email, username: form.username, role: 'user' }, 'mock-token')
+      const res = await register(form.email, form.username, form.password)
+      const { token, user } = res.data
+      setUser({ id: user.id, email: user.email, username: user.username, role: user.role || 'user' }, token)
+      try {
+        const balRes = await getBalance()
+        setBalance(balRes.data?.balance ?? 0)
+      } catch { setBalance(0) }
       addToast('Account created!', 'success')
       nav('/')
-    } catch { addToast('Registration failed', 'error') } finally { setLoading(false) }
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.response?.data?.message || 'Registration failed'
+      addToast(msg, 'error')
+    } finally { setLoading(false) }
   }
 
   const inputStyle: React.CSSProperties = { width: '100%', background: '#111', border: '1px solid #2a2a2a', borderRadius: 7, padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none', transition: 'border-color 0.2s', boxSizing: 'border-box' }
@@ -51,8 +62,8 @@ export default function Register() {
             </div>
           ))}
           <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={loading}
-            style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, padding: 11, borderRadius: 8, border: 'none', width: '100%', marginTop: 4 }}>
-            {loading ? '...' : 'Create Account'}
+            style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, padding: 11, borderRadius: 8, border: 'none', width: '100%', marginTop: 4, opacity: loading ? 0.7 : 1 }}>
+            {loading ? 'Creating account...' : 'Create Account'}
           </motion.button>
         </form>
         <div style={{ textAlign: 'center', marginTop: 14, fontSize: 12, color: '#444' }}>

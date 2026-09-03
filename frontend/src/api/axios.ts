@@ -1,7 +1,9 @@
 import axios from 'axios'
 
+const _base = (import.meta.env.VITE_API_URL || 'https://api-gateaway-production-cd24.up.railway.app').replace(/\/api\/?$/, '')
+
 export const api = axios.create({
-  baseURL: `${import.meta.env.VITE_API_URL || 'https://api-gateaway-production-cd24.up.railway.app'}/api`,
+  baseURL: `${_base}/api`,
   timeout: 10000,
 })
 

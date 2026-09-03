@@ -7,7 +7,7 @@ import jwt from 'jsonwebtoken';
 import QRCode from 'qrcode';
 import { HDWalletService, COINS, CoinSymbol } from './services/hdwallet.service';
 import { startBlockchainMonitor } from './services/blockchain.monitor';
-import { notifyWithdrawalRequest, notifyWithdrawalApproved, notifyWithdrawalRejected, sendDailyStats } from './services/telegram.service';
+import { notifyWithdrawalRequest, notifyWithdrawalApproved, notifyWithdrawalRejected, sendDailyStats, setupBotCommands } from './services/telegram.service';
 import cron from 'node-cron';
 
 dotenv.config();
@@ -334,5 +334,6 @@ cron.schedule('0 6 * * *', async () => {
   } catch (e) { console.error('Daily stats error:', e); }
 });
 
+setupBotCommands();
 app.listen(PORT, () => console.log(`wallet-service running on port ${PORT}`));
 export default app;

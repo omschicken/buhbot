@@ -2,6 +2,7 @@ import { Bot } from 'node-telegram-bot-api';
 
 const TOKEN = process.env.TELEGRAM_BOT_TOKEN || '';
 const ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || '';
+const MINI_APP_URL = process.env.TG_MINI_APP_URL || 'https://tg-admin-casino.vercel.app';
 
 const bot = TOKEN ? new Bot(TOKEN) : null;
 
@@ -9,6 +10,52 @@ async function send(msg: string, reply_markup?: any) {
   if (!bot || !ADMIN_CHAT_ID) return;
   try { await bot.api.sendMessage({ chat_id: ADMIN_CHAT_ID, text: msg, parse_mode: 'Markdown', reply_markup }); }
   catch (e: any) { console.error('Telegram send error:', e.message); }
+}
+
+export function setupBotCommands() {
+  if (!bot) return;
+
+  bot.on('message', async (msg) => {
+    const chatId = msg.chat.id;
+    const text = msg.text || '';
+
+    if (text === '/start') {
+      await bot.api.sendMessage({
+        chat_id: chatId,
+        text: '🎰 *Casino Admin Bot*\n\nКоманды:\n/stats — Статистика\n/pending — Pending выводы\n\nИли откройте админ панель:',
+        parse_mode: 'Markdown',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '📱 Открыть админку', web_app: { url: MINI_APP_URL } }
+          ]]
+        }
+      });
+    }
+
+    if (text === '/stats') {
+      await bot.api.sendMessage({
+        chat_id: chatId,
+        text: '📊 Используйте админ панель для полной статистики:',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '📱 Открыть Stats', web_app: { url: MINI_APP_URL } }
+          ]]
+        }
+      });
+    }
+
+    if (text === '/pending') {
+      await bot.api.sendMessage({
+        chat_id: chatId,
+        text: '💸 Откройте админку для управления выводами:',
+        reply_markup: {
+          inline_keyboard: [[
+            { text: '📱 Выводы', web_app: { url: `${MINI_APP_URL}/#/withdrawals` } }
+          ]]
+        }
+      });
+    }
+  });
 }
 
 export async function notifyWithdrawalRequest(data: {
@@ -21,26 +68,31 @@ export async function notifyWithdrawalRequest(data: {
   address: string;
   userBalance: number;
 }) {
-  const msg = `\u{1F4B8} *НОВЫЙ ЗАПРОС НА ВЫВОД*
+  const msg = `💸 *НОВЫЙ ЗАПРОС НА ВЫВОД*
 
-\u{1F464} Игрок: ${data.username} (${data.email})
-\u{1F194} User ID: \`${data.userId}\`
-\u{1F194} Withdrawal ID: \`${data.withdrawalId}\`
+👤 Игрок: ${data.username} (${data.email})
+🆔 User ID: \`${data.userId}\`
+🆔 Withdrawal ID: \`${data.withdrawalId}\`
 
-\u{1F4B0} Сумма: *$${data.amount.toFixed(2)} USD*
-\u{1FA99} Монета: *${data.coin}*
-\u{1F4CD} Адрес: \`${data.address}\`
+💰 Сумма: *$${data.amount.toFixed(2)} USD*
+🪙 Монета: *${data.coin}*
+📍 Адрес: \`${data.address}\`
 
-\u{1F4BC} Баланс игрока: $${data.userBalance.toFixed(2)}
-\u{1F551} Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
+💼 Баланс игрока: $${data.userBalance.toFixed(2)}
+🕑 Время: ${new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' })}
 
 Перейди в админку для подтверждения.`;
 
   await send(msg, {
-    inline_keyboard: [[
-      { text: '✅ Одобрить', callback_data: `approve_${data.withdrawalId}` },
-      { text: '❌ Отклонить', callback_data: `reject_${data.withdrawalId}` }
-    ]]
+    inline_keyboard: [
+      [
+        { text: '✅ Одобрить', callback_data: `approve_${data.withdrawalId}` },
+        { text: '❌ Отклонить', callback_data: `reject_${data.withdrawalId}` }
+      ],
+      [
+        { text: '📱 Открыть админку', web_app: { url: `${MINI_APP_URL}/#/withdrawals` } }
+      ]
+    ]
   });
 }
 
@@ -53,9 +105,9 @@ export async function notifyWithdrawalApproved(data: {
 }) {
   const msg = `✅ *ВЫВОД ОДОБРЕН*
 
-\u{1F464} ${data.username}
-\u{1F4B0} $${data.amount.toFixed(2)} (${data.coin})
-\u{1F4CD} ${data.address}${data.txHash ? `\n\u{1F517} TX: \`${data.txHash}\`` : ''}`;
+👤 ${data.username}
+💰 $${data.amount.toFixed(2)} (${data.coin})
+📍 ${data.address}${data.txHash ? `\n🔗 TX: \`${data.txHash}\`` : ''}`;
 
   await send(msg);
 }
@@ -67,9 +119,9 @@ export async function notifyWithdrawalRejected(data: {
 }) {
   const msg = `❌ *ВЫВОД ОТКЛОНЁН*
 
-\u{1F464} ${data.username}
-\u{1F4B0} $${data.amount.toFixed(2)}
-\u{1F4DD} Причина: ${data.reason}`;
+👤 ${data.username}
+💰 $${data.amount.toFixed(2)}
+📝 Причина: ${data.reason}`;
 
   await send(msg);
 }
@@ -81,12 +133,12 @@ export async function notifyDeposit(data: {
   coin: string;
   txHash: string;
 }) {
-  const msg = `\u{1F49A} *ДЕПОЗИТ ПОЛУЧЕН*
+  const msg = `💚 *ДЕПОЗИТ ПОЛУЧЕН*
 
-\u{1F464} ${data.username}
-\u{1F4B0} $${data.amountUSD.toFixed(2)} USD
-\u{1FA99} ${data.amountCrypto} ${data.coin}
-\u{1F517} TX: \`${data.txHash}\``;
+👤 ${data.username}
+💰 $${data.amountUSD.toFixed(2)} USD
+🪙 ${data.amountCrypto} ${data.coin}
+🔗 TX: \`${data.txHash}\``;
 
   await send(msg);
 }
@@ -98,15 +150,19 @@ export async function sendDailyStats(data: {
   ggr: number;
   activeUsers: number;
 }) {
-  const msg = `\u{1F4CA} *СТАТИСТИКА ЗА ДЕНЬ*
+  const msg = `📊 *СТАТИСТИКА ЗА ДЕНЬ*
 
-\u{1F465} Новых игроков: ${data.newPlayers}
-\u{1F49A} Депозиты: $${data.deposits.toFixed(2)}
-\u{1F4B8} Выводы: $${data.withdrawals.toFixed(2)}
-\u{1F4C8} GGR: $${data.ggr.toFixed(2)}
-\u{1F7E2} Активных: ${data.activeUsers}`;
+👥 Новых игроков: ${data.newPlayers}
+💚 Депозиты: $${data.deposits.toFixed(2)}
+💸 Выводы: $${data.withdrawals.toFixed(2)}
+📈 GGR: $${data.ggr.toFixed(2)}
+🟢 Активных: ${data.activeUsers}`;
 
-  await send(msg);
+  await send(msg, {
+    inline_keyboard: [[
+      { text: '📱 Подробнее', web_app: { url: MINI_APP_URL } }
+    ]]
+  });
 }
 
 export { bot };

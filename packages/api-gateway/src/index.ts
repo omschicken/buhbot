@@ -17,8 +17,6 @@ const KYC_URL = process.env.KYC_SERVICE_URL || 'http://kyc-service.railway.inter
 const BONUS_URL = process.env.BONUS_SERVICE_URL || 'http://bonus-engine.railway.internal:3005';
 const AFFILIATE_URL = process.env.AFFILIATE_SERVICE_URL || 'http://affiliate-service.railway.internal:3006';
 
-const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
-
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: '*', credentials: false }));
 
@@ -37,10 +35,11 @@ const adminOnly = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-const proxy = (target: string, pathRewrite?: Record<string, string>) =>
+const proxy = (target: string, pathFilter: string | string[], pathRewrite: Record<string, string>) =>
   createProxyMiddleware({
     target,
     changeOrigin: true,
+    pathFilter,
     pathRewrite,
     on: {
       error: (_err, _req, res) => {
@@ -50,37 +49,37 @@ const proxy = (target: string, pathRewrite?: Record<string, string>) =>
   });
 
 // Public auth routes
-app.use('/api/auth', proxy(USER_URL, { '^/api/auth': '/auth' }));
+app.use(proxy(USER_URL, '/api/auth', { '^/api/auth': '/auth' }));
 
 // Seed (public, one-time)
-app.use('/api/admin/seed', proxy(USER_URL, { '^/api/admin/seed': '/admin/seed' }));
+app.use(proxy(USER_URL, '/api/admin/seed', { '^/api/admin/seed': '/admin/seed' }));
 
 // Protected routes — wallet
-app.use('/api/wallet', verifyToken, proxy(WALLET_URL, { '^/api/wallet': '/wallet' }));
+app.use('/api/wallet', verifyToken, proxy(WALLET_URL, '/api/wallet', { '^/api/wallet': '/wallet' }));
 
 // Protected routes — kyc
-app.use('/api/kyc', verifyToken, proxy(KYC_URL, { '^/api/kyc': '/kyc' }));
+app.use('/api/kyc', verifyToken, proxy(KYC_URL, '/api/kyc', { '^/api/kyc': '/kyc' }));
 
 // Protected routes — bonus
-app.use('/api/bonus', verifyToken, proxy(BONUS_URL, { '^/api/bonus': '/bonus' }));
+app.use('/api/bonus', verifyToken, proxy(BONUS_URL, '/api/bonus', { '^/api/bonus': '/bonus' }));
 
 // Protected routes — affiliate
-app.use('/api/affiliate', verifyToken, proxy(AFFILIATE_URL, { '^/api/affiliate': '/affiliate' }));
+app.use('/api/affiliate', verifyToken, proxy(AFFILIATE_URL, '/api/affiliate', { '^/api/affiliate': '/affiliate' }));
 
 // Admin routes — user
-app.use('/api/admin/players', verifyToken, adminOnly, proxy(USER_URL, { '^/api/admin': '/admin' }));
-app.use('/api/admin/stats-users', verifyToken, adminOnly, proxy(USER_URL, { '^/api/admin/stats-users': '/admin/stats' }));
+app.use('/api/admin/players', verifyToken, adminOnly, proxy(USER_URL, '/api/admin/players', { '^/api/admin': '/admin' }));
+app.use('/api/admin/stats-users', verifyToken, adminOnly, proxy(USER_URL, '/api/admin/stats-users', { '^/api/admin/stats-users': '/admin/stats' }));
 
 // Admin routes — wallet
-app.use('/api/admin/withdrawals', verifyToken, adminOnly, proxy(WALLET_URL, { '^/api/admin': '/admin' }));
-app.use('/api/admin/transactions', verifyToken, adminOnly, proxy(WALLET_URL, { '^/api/admin': '/admin' }));
-app.use('/api/admin/stats-wallet', verifyToken, adminOnly, proxy(WALLET_URL, { '^/api/admin/stats-wallet': '/admin/stats' }));
+app.use('/api/admin/withdrawals', verifyToken, adminOnly, proxy(WALLET_URL, '/api/admin/withdrawals', { '^/api/admin': '/admin' }));
+app.use('/api/admin/transactions', verifyToken, adminOnly, proxy(WALLET_URL, '/api/admin/transactions', { '^/api/admin': '/admin' }));
+app.use('/api/admin/stats-wallet', verifyToken, adminOnly, proxy(WALLET_URL, '/api/admin/stats-wallet', { '^/api/admin/stats-wallet': '/admin/stats' }));
 
 // Admin routes — kyc
-app.use('/api/admin/kyc', verifyToken, adminOnly, proxy(KYC_URL, { '^/api/admin/kyc': '/admin/kyc' }));
+app.use('/api/admin/kyc', verifyToken, adminOnly, proxy(KYC_URL, '/api/admin/kyc', { '^/api/admin/kyc': '/admin/kyc' }));
 
 // Admin routes — bonus
-app.use('/api/admin/bonuses', verifyToken, adminOnly, proxy(BONUS_URL, { '^/api/admin': '/admin' }));
+app.use('/api/admin/bonuses', verifyToken, adminOnly, proxy(BONUS_URL, '/api/admin/bonuses', { '^/api/admin': '/admin' }));
 
 // Combined admin stats
 app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {
@@ -96,11 +95,11 @@ app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// Proxy balance adjustment through wallet
-app.use('/api/admin/players/:id/balance', verifyToken, adminOnly, (req, _res, next) => {
-  req.url = `/admin/players/${req.params.id}/balance`;
+// Balance adjustment
+app.use('/api/admin/players', verifyToken, adminOnly, (req, _res, next) => {
+  req.url = req.originalUrl;
   next();
-}, proxy(WALLET_URL));
+}, proxy(WALLET_URL, '/api/admin/players', { '^/api/admin/players/([^/]+)/balance': '/admin/players/$1/balance' }));
 
 app.listen(PORT, () => console.log(`api-gateway running on port ${PORT}`));
 export default app;

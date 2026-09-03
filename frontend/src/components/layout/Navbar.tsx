@@ -7,40 +7,41 @@ import { useJackpot, useOnlinePlayers } from '../../hooks/useLiveCounter'
 import { getBalance } from '../../api/wallet'
 
 const LANGS = [
-  { code: 'en', flag: '🇬🇧', label: 'EN' },
-  { code: 'ru', flag: '🇷🇺', label: 'RU' },
-  { code: 'tr', flag: '🇹🇷', label: 'TR' },
-  { code: 'pt', flag: '🇧🇷', label: 'PT' },
+  { code: 'en', label: 'EN', name: 'English' },
+  { code: 'ru', label: 'RU', name: 'Русский' },
+  { code: 'tr', label: 'TR', name: 'Türkçe' },
+  { code: 'pt', label: 'PT', name: 'Português' },
 ]
 
 function LangSwitcher() {
   const { i18n } = useTranslation()
   const [open, setOpen] = useState(false)
-  const current = LANGS.find((l) => l.code === i18n.language) || LANGS[0]
+  const current = LANGS.find((l) => i18n.language.startsWith(l.code)) || LANGS[0]
 
   return (
     <div style={{ position: 'relative' }}>
       <button onClick={() => setOpen((v) => !v)} style={{
         display: 'flex', alignItems: 'center', gap: 4, background: '#1e1e1e',
-        border: '1px solid #2a2a2a', borderRadius: 6, padding: '5px 8px',
-        color: '#aaa', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+        border: '1px solid #2a2a2a', borderRadius: 6, padding: '5px 10px',
+        color: '#e4a832', fontSize: 11, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.5,
       }}>
-        {current.flag} {current.label} ▾
+        {current.label} ▾
       </button>
       {open && (
         <div style={{
           position: 'absolute', top: '110%', right: 0, background: '#1a1a1a',
-          border: '1px solid #2a2a2a', borderRadius: 8, overflow: 'hidden', zIndex: 200, minWidth: 80,
+          border: '1px solid #2a2a2a', borderRadius: 8, overflow: 'hidden', zIndex: 200, minWidth: 110,
         }}>
           {LANGS.map((l) => (
             <button key={l.code} onClick={() => { i18n.changeLanguage(l.code); setOpen(false) }}
               style={{
-                display: 'flex', alignItems: 'center', gap: 6, width: '100%',
-                padding: '8px 12px', background: i18n.language === l.code ? '#252525' : 'transparent',
-                border: 'none', color: i18n.language === l.code ? '#e4a832' : '#888',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%',
+                padding: '8px 14px', background: current.code === l.code ? '#252525' : 'transparent',
+                border: 'none', color: current.code === l.code ? '#e4a832' : '#888',
                 fontSize: 12, fontWeight: 600, cursor: 'pointer',
               }}>
-              {l.flag} {l.label}
+              <span style={{ fontWeight: 800, fontSize: 11 }}>{l.label}</span>
+              <span style={{ fontSize: 11, color: '#555' }}>{l.name}</span>
             </button>
           ))}
         </div>

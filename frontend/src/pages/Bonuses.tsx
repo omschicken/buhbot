@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../store/useUIStore'
 import { getBonuses } from '../api/bonus'
 
@@ -24,6 +25,7 @@ interface Bonus {
 const COLORS = ['#e4a832', '#22c55e', '#0ea5e9', '#a855f7']
 
 export default function Bonuses() {
+  const { t } = useTranslation()
   const [code, setCode] = useState('')
   const { addToast } = useUIStore()
   const [bonuses, setBonuses] = useState<Bonus[]>([])
@@ -40,7 +42,7 @@ export default function Bonuses() {
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <div style={{ width: 3, height: 24, background: '#e4a832', borderRadius: 2 }} />
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Your Bonuses</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>{t('bonuses.myBonuses')}</span>
       </div>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: 14 }}>
@@ -48,13 +50,13 @@ export default function Bonuses() {
           style={{ flex: 1, background: '#111', border: '1px solid #2a2a2a', borderRadius: 7, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', fontFamily: 'monospace', letterSpacing: 1 }}
           onFocus={(e) => (e.target.style.borderColor = 'rgba(228,168,50,0.5)')}
           onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
-        <button onClick={() => { if (code) addToast('Promo code applied!', 'success') }} style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '8px 18px', borderRadius: 7, border: 'none' }}>Apply</button>
+        <button onClick={() => { if (code) addToast('Promo code applied!', 'success') }} style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '8px 18px', borderRadius: 7, border: 'none' }}>{t('common.confirm')}</button>
       </div>
 
       {loading ? (
-        <div style={{ color: '#444', fontSize: 13, padding: 20 }}>Loading bonuses...</div>
+        <div style={{ color: '#444', fontSize: 13, padding: 20 }}>{t('common.loading')}</div>
       ) : bonuses.length === 0 ? (
-        <div style={{ color: '#444', fontSize: 13, padding: 20, textAlign: 'center' }}>No active bonuses</div>
+        <div style={{ color: '#444', fontSize: 13, padding: 20, textAlign: 'center' }}>{t('bonuses.noBonus')}</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
           {bonuses.map((b, i) => {

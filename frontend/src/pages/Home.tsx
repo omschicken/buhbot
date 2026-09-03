@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import { useJackpot, usePaidToday, useOnlinePlayers } from '../hooks/useLiveCounter'
 
 const CATEGORIES = ['All', 'Slots', 'Live', 'Table', 'Crash', 'New']
@@ -22,6 +23,7 @@ const GAMES = [
 const WINNERS_TEXT = '🏆 CryptoWolf won $1,240 · MoonBet won $890 · DarkKnight won $3,200 · GoldRush won $540 · StarPlayer won $2,100 · '
 
 export default function Home() {
+  const { t } = useTranslation()
   const [cat, setCat] = useState('All')
   const [search, setSearch] = useState('')
   const navigate = useNavigate()
@@ -48,9 +50,9 @@ export default function Home() {
       {/* Hero stats */}
       <div style={{ background: 'linear-gradient(180deg, #1a1400 0%, var(--bg) 100%)', padding: '28px 24px', display: 'flex', gap: 24, alignItems: 'center' }}>
         {[
-          { label: 'JACKPOT', value: fmt(jackpot), gold: true, animate: true },
-          { label: 'PAID TODAY', value: fmt(paid), gold: false, animate: false },
-          { label: 'ONLINE NOW', value: online.toLocaleString(), gold: false, animate: false },
+          { label: t('home.jackpot'), value: fmt(jackpot), gold: true, animate: true },
+          { label: t('home.paidToday'), value: fmt(paid), gold: false, animate: false },
+          { label: t('home.onlineNow'), value: online.toLocaleString(), gold: false, animate: false },
         ].map(({ label, value, gold, animate }) => (
           <div key={label} style={{ flex: 1, textAlign: 'center' }}>
             <div style={{ fontSize: 10, color: 'var(--text3)', letterSpacing: 2, marginBottom: 4 }}>{label}</div>
@@ -67,7 +69,7 @@ export default function Home() {
       <div style={{ padding: '16px 24px', display: 'flex', gap: 12, alignItems: 'center', background: 'var(--bg)' }}>
         <input
           value={search} onChange={(e) => setSearch(e.target.value)}
-          placeholder="🔍 Search games..."
+          placeholder={`🔍 ${t('home.searchGames')}`}
           style={{
             flex: 1, maxWidth: 300, padding: '9px 14px', borderRadius: 8, fontSize: 13,
             background: 'var(--card)', border: '1px solid var(--border2)', color: 'var(--text)', outline: 'none',
@@ -107,7 +109,7 @@ export default function Home() {
               <div style={{ height: 100, background: 'var(--bg2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 48, position: 'relative' }}>
                 {game.img}
                 {game.hot && (
-                  <div style={{ position: 'absolute', top: 8, right: 8, background: 'var(--red)', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>HOT</div>
+                  <div style={{ position: 'absolute', top: 8, right: 8, background: 'var(--red)', color: '#fff', fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4 }}>{t('home.hot')}</div>
                 )}
               </div>
               <div style={{ padding: '10px 12px' }}>

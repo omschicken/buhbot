@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '../store/useAuthStore'
 import { useUIStore } from '../store/useUIStore'
 import { getBalance, getTransactions, withdraw } from '../api/wallet'
@@ -18,6 +19,7 @@ interface Tx {
 }
 
 export default function Wallet() {
+  const { t } = useTranslation()
   const { balance, setBalance } = useAuthStore()
   const { addToast } = useUIStore()
   const [txs, setTxs] = useState<Tx[]>([])
@@ -49,48 +51,46 @@ export default function Wallet() {
   const handleWithdraw = async (e: React.FormEvent) => {
     e.preventDefault()
     const amount = parseFloat(withdrawForm.amount)
-    if (!amount || amount <= 0) { addToast('Enter valid amount', 'error'); return }
-    if (amount > balance) { addToast('Insufficient balance', 'error'); return }
-    if (!withdrawForm.destination) { addToast('Enter destination address', 'error'); return }
+    if (!amount || amount <= 0) { addToast(t('wallet.withdrawAmountMin'), 'error'); return }
+    if (amount > balance) { addToast(t('common.error'), 'error'); return }
+    if (!withdrawForm.destination) { addToast(t('wallet.address'), 'error'); return }
     setWithdrawLoading(true)
     try {
       await withdraw(amount, withdrawForm.method, withdrawForm.destination)
-      addToast('Withdrawal requested!', 'success')
+      addToast(t('wallet.withdrawSuccess'), 'success')
       setWithdrawModal(false)
       const balRes = await getBalance()
       setBalance(balRes.data?.balance ?? 0)
       setPage(1)
     } catch (err: any) {
-      addToast(err.response?.data?.error || 'Withdrawal failed', 'error')
+      addToast(err.response?.data?.error || t('common.failed'), 'error')
     } finally { setWithdrawLoading(false) }
   }
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.6fr', gap: 20 }}>
-      {/* Left */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
           style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 12, padding: 20 }}>
-          <div style={{ fontSize: 10, color: '#444', letterSpacing: 1, marginBottom: 8 }}>TOTAL BALANCE</div>
+          <div style={{ fontSize: 10, color: '#444', letterSpacing: 1, marginBottom: 8 }}>{t('wallet.balance').toUpperCase()}</div>
           <div style={{ fontSize: 32, fontWeight: 900, color: '#e4a832', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>${balance.toFixed(2)}</div>
           <div style={{ fontSize: 11, color: '#444', marginBottom: 16 }}>≈ {(balance / 42000).toFixed(6)} BTC</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={() => addToast('Contact support to deposit', 'success')}
-              style={{ flex: 1, background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '9px', borderRadius: 7, border: 'none' }}>Deposit</button>
+              style={{ flex: 1, background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '9px', borderRadius: 7, border: 'none' }}>{t('wallet.deposit')}</button>
             <button onClick={() => setWithdrawModal(true)}
-              style={{ flex: 1, background: '#1e1e1e', color: '#888', fontWeight: 600, fontSize: 12, padding: '9px', borderRadius: 7, border: '1px solid #2a2a2a' }}>Withdraw</button>
+              style={{ flex: 1, background: '#1e1e1e', color: '#888', fontWeight: 600, fontSize: 12, padding: '9px', borderRadius: 7, border: '1px solid #2a2a2a' }}>{t('wallet.withdraw')}</button>
           </div>
         </motion.div>
       </div>
 
-      {/* Right — transactions */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
         style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 12, overflow: 'hidden' }}>
-        <div style={{ padding: '14px 18px', borderBottom: '1px solid #222', fontSize: 12, fontWeight: 700 }}>Transaction History</div>
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #222', fontSize: 12, fontWeight: 700 }}>{t('wallet.transactions')}</div>
         {txLoading && page === 1 ? (
-          <div style={{ padding: 30, textAlign: 'center', color: '#444', fontSize: 12 }}>Loading...</div>
+          <div style={{ padding: 30, textAlign: 'center', color: '#444', fontSize: 12 }}>{t('common.loading')}</div>
         ) : txs.length === 0 ? (
-          <div style={{ padding: 30, textAlign: 'center', color: '#444', fontSize: 12 }}>No transactions yet</div>
+          <div style={{ padding: 30, textAlign: 'center', color: '#444', fontSize: 12 }}>{t('wallet.noTransactions')}</div>
         ) : (
           <>
             {txs.map((tx) => {
@@ -100,7 +100,7 @@ export default function Wallet() {
               return (
                 <div key={tx.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderBottom: '1px solid #1e1e1e' }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: color + '15', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
-                    {tx.type === 'deposit' ? '↓' : tx.type === 'withdrawal' ? '↑' : tx.type === 'win' ? '🏆' : '🎲'}
+                    {tx.type === 'deposit' ? '↓' : tx.type === 'withdrawal' ? '↑' : tx.type === 'win' ? '★' : '◆'}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</div>
@@ -116,25 +116,24 @@ export default function Wallet() {
             {hasMore && (
               <button onClick={() => setPage((p) => p + 1)} disabled={txLoading}
                 style={{ width: '100%', padding: '12px', background: 'none', border: 'none', color: '#e4a832', fontSize: 12, cursor: 'pointer' }}>
-                {txLoading ? 'Loading...' : 'Load more'}
+                {txLoading ? t('common.loading') : 'Load more'}
               </button>
             )}
           </>
         )}
       </motion.div>
 
-      {/* Withdraw modal */}
       {withdrawModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500 }}
           onClick={() => setWithdrawModal(false)}>
           <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
             onClick={(e) => e.stopPropagation()}
             style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 14, padding: 24, width: 340 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>Withdraw Funds</div>
+            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 20 }}>{t('wallet.withdraw')}</div>
             <form onSubmit={handleWithdraw} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
               {[
-                { label: 'Amount (USD)', key: 'amount', type: 'number', ph: '100' },
-                { label: 'Destination Address', key: 'destination', type: 'text', ph: '0x...' },
+                { label: t('wallet.amount') + ' (USD)', key: 'amount', type: 'number', ph: '100' },
+                { label: t('wallet.address'), key: 'destination', type: 'text', ph: '0x...' },
               ].map(({ label, key, type, ph }) => (
                 <div key={key}>
                   <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>{label}</label>
@@ -145,10 +144,10 @@ export default function Wallet() {
               ))}
               <div style={{ display: 'flex', gap: 8 }}>
                 <button type="button" onClick={() => setWithdrawModal(false)}
-                  style={{ flex: 1, background: '#111', color: '#888', border: '1px solid #2a2a2a', borderRadius: 7, padding: '10px', fontSize: 12, cursor: 'pointer' }}>Cancel</button>
+                  style={{ flex: 1, background: '#111', color: '#888', border: '1px solid #2a2a2a', borderRadius: 7, padding: '10px', fontSize: 12, cursor: 'pointer' }}>{t('common.cancel')}</button>
                 <button type="submit" disabled={withdrawLoading}
                   style={{ flex: 1, background: '#e4a832', color: '#000', fontWeight: 800, border: 'none', borderRadius: 7, padding: '10px', fontSize: 12, cursor: 'pointer', opacity: withdrawLoading ? 0.7 : 1 }}>
-                  {withdrawLoading ? 'Processing...' : 'Withdraw'}
+                  {withdrawLoading ? t('common.loading') : t('wallet.withdraw')}
                 </button>
               </div>
             </form>

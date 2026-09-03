@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../store/useUIStore'
 import { getAffiliateDashboard } from '../api/affiliate'
 
@@ -23,6 +24,7 @@ interface Dashboard {
 const MONTHS = ['J','F','M','A','M','J','J','A','S','O','N','D']
 
 export default function Affiliate() {
+  const { t } = useTranslation()
   const { addToast } = useUIStore()
   const [data, setData] = useState<Dashboard | null>(null)
   const [loading, setLoading] = useState(true)
@@ -44,36 +46,39 @@ export default function Affiliate() {
   const maxM = Math.max(...monthly, 1)
 
   const copy = () => {
-    if (link) { navigator.clipboard.writeText(link); addToast('Link copied!', 'success') }
+    if (link) { navigator.clipboard.writeText(link); addToast(t('affiliate.copied'), 'success') }
   }
 
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
         <div style={{ width: 3, height: 24, background: '#e4a832', borderRadius: 2 }} />
-        <span style={{ fontSize: 14, fontWeight: 700 }}>Affiliate Dashboard</span>
+        <span style={{ fontSize: 14, fontWeight: 700 }}>{t('affiliate.title')}</span>
       </div>
 
       {loading ? (
-        <div style={{ color: '#444', fontSize: 13 }}>Loading...</div>
+        <div style={{ color: '#444', fontSize: 13 }}>{t('common.loading')}</div>
       ) : !data ? (
-        <div style={{ color: '#444', fontSize: 13 }}>Affiliate program not available</div>
+        <div style={{ color: '#444', fontSize: 13 }}>{t('common.noData')}</div>
       ) : (
         <>
-          {/* Ref link */}
           <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: 16, marginBottom: 16 }}>
-            <div style={{ fontSize: 10, color: '#444', letterSpacing: 0.5, marginBottom: 8 }}>YOUR REFERRAL LINK</div>
+            <div style={{ fontSize: 10, color: '#444', letterSpacing: 0.5, marginBottom: 8 }}>{t('affiliate.referralLink').toUpperCase()}</div>
             <div style={{ display: 'flex', gap: 8 }}>
               <code style={{ flex: 1, background: '#111', border: '1px solid #2a2a2a', borderRadius: 7, padding: '8px 12px', fontSize: 11, color: '#e4a832', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {link || code || 'No referral link yet'}
+                {link || code || '—'}
               </code>
-              <button onClick={copy} style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 11, padding: '8px 16px', borderRadius: 7, border: 'none', flexShrink: 0 }}>Copy</button>
+              <button onClick={copy} style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 11, padding: '8px 16px', borderRadius: 7, border: 'none', flexShrink: 0 }}>{t('affiliate.copy')}</button>
             </div>
           </div>
 
-          {/* Stats */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-            {([['REFERRALS', referrals, '#e4a832'], ['ACTIVE', active, '#22c55e'], ['COMMISSION', `${commission}%`, '#0ea5e9'], ['EARNED', `$${earned.toLocaleString()}`, '#e4a832']] as const).map(([l, v, c]) => (
+            {([
+              [t('affiliate.totalReferrals'), referrals, '#e4a832'],
+              ['Active', active, '#22c55e'],
+              [t('affiliate.commissionRate'), `${commission}%`, '#0ea5e9'],
+              [t('affiliate.totalEarnings'), `$${earned.toLocaleString()}`, '#e4a832'],
+            ] as const).map(([l, v, c]) => (
               <motion.div key={l} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                 style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: '12px 14px' }}>
                 <div style={{ fontSize: 16, fontWeight: 800, color: c }}>{typeof v === 'number' ? v.toLocaleString() : v}</div>
@@ -82,7 +87,6 @@ export default function Affiliate() {
             ))}
           </div>
 
-          {/* Bar chart */}
           <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: 16, marginBottom: 16 }}>
             <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 14 }}>Monthly Earnings</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 4, height: 100 }}>
@@ -96,15 +100,13 @@ export default function Affiliate() {
             </div>
           </div>
 
-          {/* How it works */}
           <div style={{ background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: 16 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>How it works</div>
+            <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 12 }}>{t('affiliate.howItWorks')}</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {(['Share link', 'They sign up', 'You earn'] as const).map((t, i) => (
-                <div key={t} style={{ textAlign: 'center', padding: 12 }}>
+              {[t('affiliate.step1'), t('affiliate.step2'), t('affiliate.step3')].map((step, i) => (
+                <div key={i} style={{ textAlign: 'center', padding: 12 }}>
                   <div style={{ width: 28, height: 28, borderRadius: '50%', background: '#e4a83215', border: '1px solid #e4a83240', margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 800, color: '#e4a832' }}>{i + 1}</div>
-                  <div style={{ fontSize: 11, fontWeight: 700, marginBottom: 4 }}>{t}</div>
-                  <div style={{ fontSize: 10, color: '#444' }}>{['Share your referral link with friends', 'They register and deposit', `${commission}% commission forever`][i]}</div>
+                  <div style={{ fontSize: 11, color: '#888' }}>{step}</div>
                 </div>
               ))}
             </div>

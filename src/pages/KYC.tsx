@@ -15,7 +15,7 @@ interface KYCItem {
 
 export default function KYC() {
   const qc = useQueryClient()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['kyc'],
     queryFn: () => getKYCPending().then((r) => r.data?.items || r.data || []),
   })
@@ -61,6 +61,11 @@ export default function KYC() {
 
       {isLoading ? (
         <div style={{ color: 'var(--text3)', fontSize: 13, textAlign: 'center', padding: 20 }}>Загрузка...</div>
+      ) : isError ? (
+        <div className="card" style={{ textAlign: 'center', padding: 30 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+          <div style={{ fontSize: 13, color: 'var(--red)' }}>Ошибка загрузки</div>
+        </div>
       ) : items.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 30 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>

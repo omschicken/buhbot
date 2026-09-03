@@ -4,7 +4,7 @@ import { getAdminStats } from '../api'
 
 export default function Dashboard() {
   const [key, setKey] = useState(0)
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['stats', key],
     queryFn: () => getAdminStats().then((r) => r.data),
   })
@@ -42,6 +42,12 @@ export default function Dashboard() {
 
       {isLoading ? (
         <div style={{ color: 'var(--text3)', fontSize: 13, padding: 20, textAlign: 'center' }}>Загрузка...</div>
+      ) : isError ? (
+        <div className="card" style={{ textAlign: 'center', padding: 30 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+          <div style={{ fontSize: 13, color: 'var(--red)' }}>Ошибка загрузки</div>
+          <button className="btn btn-outline" onClick={refresh} style={{ fontSize: 12, marginTop: 12 }}>🔄 Повторить</button>
+        </div>
       ) : (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 20 }}>

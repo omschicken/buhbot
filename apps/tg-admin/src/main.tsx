@@ -5,8 +5,7 @@ import WebApp from '@twa-dev/sdk'
 import App from './App'
 import './styles.css'
 
-WebApp.ready()
-WebApp.expand()
+try { WebApp.ready(); WebApp.expand() } catch {}
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 30_000, retry: false } } })
 

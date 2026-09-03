@@ -74,7 +74,7 @@ export default function KYC() {
                 <div>
                   <div style={{ fontSize: 13, fontWeight: 700 }}>{k.username || k.email || k.user_id.slice(0, 8)}</div>
                   <div style={{ fontSize: 10, color: 'var(--text3)' }}>
-                    {new Date(k.created_at).toLocaleDateString('ru')}
+                    {k.created_at ? new Date(k.created_at).toLocaleDateString('ru') : '—'}
                   </div>
                 </div>
                 <div style={{ padding: '4px 10px', background: 'var(--gold-dim)', borderRadius: 6, fontSize: 11, color: 'var(--gold)', fontWeight: 700, alignSelf: 'flex-start' }}>

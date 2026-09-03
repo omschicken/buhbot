@@ -50,7 +50,7 @@ export default function PlayerDetail() {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
         {[
-          ['Баланс', `$${(p.balance ?? 0).toFixed(2)}`, 'var(--gold)'],
+          ['Баланс', `$${Number(p.balance || 0).toFixed(2)}`, 'var(--gold)'],
           ['ID', p.id?.slice(0, 16) + '...', 'var(--text2)'],
           ['Роль', p.role || 'user', 'var(--text)'],
           ['Регистрация', p.created_at ? new Date(p.created_at).toLocaleDateString('ru') : '—', 'var(--text2)'],

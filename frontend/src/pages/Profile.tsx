@@ -31,7 +31,7 @@ export default function Profile() {
   const vipPct = vip ? Math.round((vip.xp / vip.nextXp) * 100) : 0
 
   return (
-    <div style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+    <div>
       <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 20 }}>{t('profile.title')}</h1>
 
       {loading ? (

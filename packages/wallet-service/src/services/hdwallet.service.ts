@@ -46,7 +46,7 @@ export class HDWalletService {
 
   private deriveAddress(masterKey: HDKey, index: number, coin: CoinSymbol): string {
     const child = masterKey.deriveChild(index);
-    const pubkey = child.publicKey;
+    const pubkey = child.publicKey!;
 
     if (coin === 'BTC') {
       bitcoin.initEccLib(tiny);

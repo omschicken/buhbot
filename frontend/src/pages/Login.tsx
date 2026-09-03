@@ -1,0 +1,68 @@
+import { useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
+import { motion } from 'framer-motion'
+import { useAuthStore } from '../store/useAuthStore'
+import { useUIStore } from '../store/useUIStore'
+import RouletteBg from '../effects/RouletteBg'
+
+export default function Login() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
+  const { setUser } = useAuthStore()
+  const { addToast } = useUIStore()
+  const nav = useNavigate()
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      await new Promise((r) => setTimeout(r, 700))
+      setUser({ id: '1', email, username: email.split('@')[0], role: 'user' }, 'mock-token')
+      addToast('Welcome back!', 'success')
+      nav('/')
+    } catch {
+      addToast('Invalid credentials', 'error')
+    } finally { setLoading(false) }
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', background: '#111', border: '1px solid #2a2a2a', borderRadius: 7,
+    padding: '9px 12px', color: '#fff', fontSize: 13, outline: 'none',
+    transition: 'border-color 0.2s', boxSizing: 'border-box',
+  }
+
+  return (
+    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#161616', position: 'relative' }}>
+      <RouletteBg />
+      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
+        style={{ background: '#1a1a1a', border: '1px solid #272727', borderRadius: 14, padding: 28, width: '100%', maxWidth: 360, position: 'relative', zIndex: 2 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 22, fontWeight: 900, marginBottom: 6 }}><span>ROO</span><span style={{ color: '#e4a832' }}>BET</span></div>
+          <div style={{ fontSize: 12, color: '#555' }}>Sign in to your account</div>
+        </div>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Email</label>
+            <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required style={inputStyle} placeholder="you@example.com"
+              onFocus={(e) => (e.target.style.borderColor = 'rgba(228,168,50,0.5)')}
+              onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
+          </div>
+          <div>
+            <label style={{ fontSize: 11, color: '#555', display: 'block', marginBottom: 6 }}>Password</label>
+            <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" required style={inputStyle} placeholder="••••••••"
+              onFocus={(e) => (e.target.style.borderColor = 'rgba(228,168,50,0.5)')}
+              onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
+          </div>
+          <motion.button type="submit" whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} disabled={loading}
+            style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, padding: '11px', borderRadius: 8, border: 'none', width: '100%', marginTop: 4 }}>
+            {loading ? '...' : 'Sign In'}
+          </motion.button>
+        </form>
+        <div style={{ textAlign: 'center', marginTop: 16, fontSize: 12, color: '#444' }}>
+          No account? <Link to="/register" style={{ color: '#e4a832' }}>Sign up</Link>
+        </div>
+      </motion.div>
+    </div>
+  )
+}

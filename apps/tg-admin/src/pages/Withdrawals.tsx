@@ -9,15 +9,17 @@ interface Withdrawal {
   username?: string
   email?: string
   amount: number
-  coin: string
-  address: string
+  coin?: string
+  method?: string
+  address?: string
+  destination?: string
   status: string
   created_at: string
 }
 
 export default function Withdrawals() {
   const qc = useQueryClient()
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError } = useQuery({
     queryKey: ['withdrawals'],
     queryFn: () => getWithdrawals().then((r) => r.data?.withdrawals || r.data || []),
   })
@@ -63,6 +65,11 @@ export default function Withdrawals() {
 
       {isLoading ? (
         <div style={{ color: 'var(--text3)', fontSize: 13, textAlign: 'center', padding: 20 }}>Загрузка...</div>
+      ) : isError ? (
+        <div className="card" style={{ textAlign: 'center', padding: 30 }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>⚠️</div>
+          <div style={{ fontSize: 13, color: 'var(--red)' }}>Ошибка загрузки</div>
+        </div>
       ) : items.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: 30 }}>
           <div style={{ fontSize: 32, marginBottom: 8 }}>✅</div>
@@ -81,12 +88,12 @@ export default function Withdrawals() {
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--red)' }}>${Number(w.amount).toFixed(2)}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text2)' }}>{w.coin}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text2)' }}>{w.coin || w.method || '—'}</div>
                 </div>
               </div>
 
               <div style={{ fontSize: 11, color: 'var(--text2)', marginBottom: 10, wordBreak: 'break-all' }}>
-                📍 {w.address.slice(0, 12)}...{w.address.slice(-8)}
+                {(() => { const addr = w.address || w.destination || ''; return addr ? `📍 ${addr.slice(0, 12)}...${addr.slice(-8)}` : '📍 —' })()}
               </div>
 
               {showApprove === w.id && (

@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: 'http://localhost:3000/api',
+  baseURL: 'https://api-gateaway-production-cd24.up.railway.app/api',
   timeout: 10000,
 })
 

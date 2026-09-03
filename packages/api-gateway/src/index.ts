@@ -73,8 +73,18 @@ app.use(proxy(AFFILIATE_URL, '/api/affiliate', { '^/api/affiliate': '/affiliate'
 // Admin routes — auth middleware
 app.use('/api/admin', verifyToken, adminOnly);
 
-// Admin routes — balance adjustment (wallet-service) — must be before general players proxy
-app.use('/api/admin/players/:id/balance', proxy(WALLET_URL, '/api/admin/players', { '^/api/admin/players': '/admin/players' }));
+// Admin routes — balance adjustment (wallet-service) — direct route before generic players proxy
+app.post('/api/admin/players/:id/balance', verifyToken, adminOnly, express.json(), async (req, res) => {
+  try {
+    const r = await fetch(`${WALLET_URL}/admin/players/${req.params.id}/balance`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
 
 // Admin routes — user
 app.use(proxy(USER_URL, '/api/admin/players', { '^/api/admin': '/admin' }));
@@ -104,11 +114,6 @@ app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
-// Balance adjustment
-app.use('/api/admin/players', verifyToken, adminOnly, (req, _res, next) => {
-  req.url = req.originalUrl;
-  next();
-}, proxy(WALLET_URL, '/api/admin/players', { '^/api/admin/players/([^/]+)/balance': '/admin/players/$1/balance' }));
 
 app.listen(PORT, () => console.log(`api-gateway running on port ${PORT}`));
 export default app;

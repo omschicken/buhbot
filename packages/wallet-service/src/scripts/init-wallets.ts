@@ -5,6 +5,8 @@ import { HDWalletService, COINS, CoinSymbol } from '../services/hdwallet.service
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: process.env.DATABASE_URL?.includes('railway') ? { rejectUnauthorized: false } : false });
 
+const reset = process.argv.includes('--reset');
+
 async function main() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS crypto_wallets (
@@ -36,6 +38,12 @@ async function main() {
       UNIQUE(tx_hash, coin)
     );
   `);
+
+  if (reset) {
+    console.log('Resetting all wallets and addresses...');
+    await pool.query('DELETE FROM player_addresses');
+    await pool.query('DELETE FROM crypto_wallets');
+  }
 
   const svc = new HDWalletService(pool);
 

@@ -46,7 +46,7 @@ export default function Players() {
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold)' }}>
-                  ${(p.balance ?? 0).toFixed(2)}
+                  ${Number(p.balance || 0).toFixed(2)}
                 </div>
                 <div style={{ fontSize: 9, color: statusColor[p.status || 'active'] || 'var(--text3)', fontWeight: 700 }}>
                   {(p.status || 'active').toUpperCase()}

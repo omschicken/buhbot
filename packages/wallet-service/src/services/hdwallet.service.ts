@@ -1,7 +1,6 @@
-import * as bip32 from '@scure/bip32';
-import * as bip39 from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english';
 import { Pool } from 'pg';
+import * as bip39 from 'bip39';
+import HDKey from 'hdkey';
 import * as bitcoin from 'bitcoinjs-lib';
 import { ethers } from 'ethers';
 import tiny from 'tiny-secp256k1';
@@ -19,55 +18,53 @@ export type CoinSymbol = keyof typeof COINS;
 
 export class HDWalletService {
   private pool: Pool;
-  private keyCache: Map<string, bip32.HDKey> = new Map();
+  private keyCache: Map<string, HDKey> = new Map();
 
   constructor(pool: Pool) {
     this.pool = pool;
   }
 
   async generateMasterWallet(coin: CoinSymbol): Promise<{ mnemonic: string; xpub: string }> {
-    const mnemonic = bip39.generateMnemonic(wordlist, 256);
+    const mnemonic = bip39.generateMnemonic(256);
     const seed = await bip39.mnemonicToSeed(mnemonic);
-    const root = bip32.HDKey.fromMasterSeed(seed);
+    const root = HDKey.fromMasterSeed(Buffer.from(seed));
     const coinConf = COINS[coin];
-    const account = root.derive(coinConf.path.replace(/\/\d+$/, ''));
+    const accountPath = coinConf.path.replace(/\/\d+'?$/, '');
+    const account = root.derive(accountPath);
     const xpub = account.publicExtendedKey;
     return { mnemonic, xpub };
   }
 
-  private async getMasterKey(coin: CoinSymbol): Promise<bip32.HDKey | null> {
+  private async getMasterKey(coin: CoinSymbol): Promise<HDKey | null> {
     if (this.keyCache.has(coin)) return this.keyCache.get(coin)!;
     const result = await this.pool.query('SELECT xpub FROM crypto_wallets WHERE coin=$1', [coin]);
     if (!result.rows[0]) return null;
-    const key = bip32.HDKey.fromExtendedKey(result.rows[0].xpub);
+    const key = HDKey.fromExtendedKey(result.rows[0].xpub);
     this.keyCache.set(coin, key);
     return key;
   }
 
-  private deriveAddress(masterKey: bip32.HDKey, index: number, coin: CoinSymbol): string {
+  private deriveAddress(masterKey: HDKey, index: number, coin: CoinSymbol): string {
     const child = masterKey.deriveChild(index);
-    const pubkey = child.publicKey!;
+    const pubkey = child.publicKey;
 
     if (coin === 'BTC') {
       bitcoin.initEccLib(tiny);
-      const { address } = bitcoin.payments.p2wpkh({ pubkey: Buffer.from(pubkey), network: bitcoin.networks.bitcoin });
+      const { address } = bitcoin.payments.p2wpkh({ pubkey, network: bitcoin.networks.bitcoin });
       return address!;
     }
 
     if (coin === 'LTC') {
-      // LTC uses P2PKH
-      const hash = bitcoin.crypto.hash160(Buffer.from(pubkey));
-      const addr = bitcoin.address.toBase58Check(hash, 0x30); // LTC mainnet prefix
-      return addr;
+      const hash = bitcoin.crypto.hash160(pubkey);
+      return bitcoin.address.toBase58Check(hash, 0x30);
     }
 
     if (coin === 'ETH' || coin === 'USDT' || coin === 'USDC') {
-      return ethers.computeAddress('0x' + Buffer.from(pubkey).toString('hex'));
+      return ethers.computeAddress('0x' + pubkey.toString('hex'));
     }
 
     if (coin === 'SOL') {
-      // For SOL we just use pubkey bytes as base58
-      return Buffer.from(pubkey).toString('hex'); // simplified; real SOL needs ed25519
+      return pubkey.toString('hex');
     }
 
     throw new Error(`Unsupported coin: ${coin}`);

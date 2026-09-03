@@ -17,18 +17,24 @@ interface AuthState {
   logout: () => void
 }
 
+const storedUser = (() => {
+  try { return JSON.parse(localStorage.getItem('casino_user') || 'null') } catch { return null }
+})()
+
 export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
+  user: storedUser,
   balance: 0,
   isAuthenticated: !!localStorage.getItem('casino_token'),
   token: localStorage.getItem('casino_token'),
   setUser: (user, token) => {
     localStorage.setItem('casino_token', token)
+    localStorage.setItem('casino_user', JSON.stringify(user))
     set({ user, token, isAuthenticated: true })
   },
   setBalance: (balance) => set({ balance }),
   logout: () => {
     localStorage.removeItem('casino_token')
+    localStorage.removeItem('casino_user')
     set({ user: null, token: null, isAuthenticated: false, balance: 0 })
   },
 }))

@@ -8,10 +8,11 @@ import { getMultiplier } from '../utils/multipliers';
 
 export class PlinkoService {
   async init() {
-    await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+    // uuid-ossp may require superuser; gen_random_uuid() is built-in (pg 13+)
+    try { await pool.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`) } catch { }
     await pool.query(`
       CREATE TABLE IF NOT EXISTS plinko_rounds (
-        id               UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id          UUID NOT NULL,
         server_seed      TEXT NOT NULL,
         server_seed_hash TEXT NOT NULL,

@@ -85,8 +85,8 @@ const CSS = `
 
   .bac-panel { background:#111; border-top:1px solid #1e1e1e; padding:8px 10px; flex-shrink:0; }
   .bac-sides { display:flex; gap:5px; margin-bottom:8px; }
-  .bac-side { border-radius:8px; border:2px solid #252525; background:#161616; color:#555; cursor:pointer; padding:7px 6px; display:flex; flex-direction:column; align-items:center; gap:2px; }
-  .bac-side.on { border-color:var(--c); background:color-mix(in srgb, var(--c) 12%, transparent); color:var(--c); }
+  .bac-side { border-radius:8px; border:2px solid var(--c); background:color-mix(in srgb, var(--c) 18%, #111); color:var(--c); cursor:pointer; padding:7px 6px; display:flex; flex-direction:column; align-items:center; gap:2px; transition:background .15s; }
+  .bac-side.on { background:color-mix(in srgb, var(--c) 38%, #111); box-shadow:0 0 14px color-mix(in srgb, var(--c) 40%, transparent); }
   .bac-chips { display:flex; gap:5px; margin-bottom:8px; justify-content:center; }
   .bac-chip { border-radius:50%; cursor:pointer; font-size:9px; font-weight:900; transition:transform .1s; }
   .bac-chip:hover { transform:scale(1.12); }
@@ -308,7 +308,7 @@ export default function BaccaratGame() {
                   style={{ flex: s === 'tie' ? '0 0 70px' : 1, '--c': W[s] } as any}
                   onClick={() => setSide(s)} disabled={dealing}>
                   <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1 }}>{s.toUpperCase()}</span>
-                  <span style={{ fontSize: 8, color: '#444' }}>{s === 'player' ? '1:1' : s === 'banker' ? '0.95:1' : '8:1'}</span>
+                  <span style={{ fontSize: 8, opacity: 0.6 }}>{s === 'player' ? '1:1' : s === 'banker' ? '0.95:1' : '8:1'}</span>
                   <span style={{ fontSize: 13, fontWeight: 900, color: bets[s] > 0 ? '#e4a832' : '#333' }}>
                     ${bets[s] > 0 ? bets[s].toFixed(2) : '0'}
                   </span>

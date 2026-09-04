@@ -70,39 +70,49 @@ interface HistoryEntry {
 type Tab = 'game' | 'history' | 'fair'
 type BetSide = 'player' | 'banker' | 'tie'
 
-// ─── Card ────────────────────────────────────────────────────────────────────
-function PlayingCard({ value, pos, visible, delay }: { value: number; pos: number; visible: boolean; delay: number }) {
+// ─── Card ─────────────────────────────────────────────────────────────────────
+// Настоящий 3D-переворот: рубашка спереди → лицо после flip
+function PlayingCard({ value, pos, visible }: { value: number; pos: number; visible: boolean; delay?: number }) {
   const suit = suitFor(value, pos)
   const col = cardColor(suit)
   return (
-    <div style={{
-      width: 48, height: 68, borderRadius: 7, flexShrink: 0,
-      transition: `transform 0.35s ease ${delay}ms, opacity 0.35s ease ${delay}ms`,
-      transform: visible ? 'rotateY(0deg)' : 'rotateY(90deg)',
-      opacity: visible ? 1 : 0,
-    }}>
+    <div style={{ width: 58, height: 84, perspective: '600px', flexShrink: 0 }}>
       <div style={{
-        width: '100%', height: '100%', borderRadius: 7,
-        background: '#fff', border: '1px solid #d1d5db',
-        boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
-        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+        width: '100%', height: '100%', position: 'relative',
+        transformStyle: 'preserve-3d',
+        transition: 'transform 0.45s ease',
+        transform: visible ? 'rotateY(180deg)' : 'rotateY(0deg)',
       }}>
-        <div style={{ fontSize: 12, fontWeight: 900, color: col, lineHeight: 1 }}>{CARD_NAMES[value]}</div>
-        <div style={{ fontSize: 14, color: col, lineHeight: 1 }}>{suit}</div>
+        {/* Рубашка (передняя сторона до переворота) */}
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 8, backfaceVisibility: 'hidden',
+          background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8)',
+          border: '1px solid #2563eb', boxShadow: '0 3px 10px rgba(0,0,0,0.6)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          <div style={{ fontSize: 22, opacity: 0.25, transform: 'scale(1.2)' }}>♦</div>
+        </div>
+        {/* Лицо (задняя сторона, видна после переворота) */}
+        <div style={{
+          position: 'absolute', inset: 0, borderRadius: 8,
+          backfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
+          background: '#fff', border: '1px solid #e5e7eb',
+          boxShadow: '0 3px 10px rgba(0,0,0,0.6)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+        }}>
+          <div style={{ fontSize: 15, fontWeight: 900, color: col, lineHeight: 1 }}>{CARD_NAMES[value]}</div>
+          <div style={{ fontSize: 18, color: col, lineHeight: 1 }}>{suit}</div>
+        </div>
       </div>
     </div>
   )
 }
-function CardBack() {
+function CardSlot() {
   return (
     <div style={{
-      width: 48, height: 68, borderRadius: 7, flexShrink: 0,
-      background: 'linear-gradient(135deg,#1d4ed8,#1e40af)',
-      border: '1px solid #1e3a8a', boxShadow: '0 2px 6px rgba(0,0,0,0.5)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-    }}>
-      <div style={{ fontSize: 18, opacity: 0.3 }}>🂠</div>
-    </div>
+      width: 58, height: 84, borderRadius: 8, flexShrink: 0,
+      border: '1px dashed #252525', background: '#0d0d0d',
+    }} />
   )
 }
 
@@ -198,6 +208,11 @@ export default function BaccaratGame() {
       const data: RoundResult = r.data.data
       setLastBets({ ...bets })
 
+      // Показываем все нужные карты рубашкой сразу
+      setVisibleCards({ player: [], banker: [] })
+      // небольшая пауза чтобы рубашки отрисовались
+      await new Promise(res => setTimeout(res, 150))
+
       const order: Array<{ side: 'player' | 'banker'; idx: number }> = [
         { side: 'player', idx: 0 }, { side: 'banker', idx: 0 },
         { side: 'player', idx: 1 }, { side: 'banker', idx: 1 },
@@ -205,17 +220,20 @@ export default function BaccaratGame() {
       if (data.playerCards.length > 2) order.push({ side: 'player', idx: 2 })
       if (data.bankerCards.length > 2) order.push({ side: 'banker', idx: 2 })
 
+      // Сначала устанавливаем result чтобы карты появились рубашкой
+      setResult(data)
+      await new Promise(res => setTimeout(res, 50))
+
       const audio = getAudio()
       for (const { side, idx } of order) {
-        await new Promise(res => setTimeout(res, 350))
+        await new Promise(res => setTimeout(res, 380))
         if (!muted && audio) audio.dealSound()
         setVisibleCards(prev => ({
           ...prev,
           [side]: prev[side].includes(idx) ? prev[side] : [...prev[side], idx],
         }))
       }
-      await new Promise(res => setTimeout(res, 300))
-      setResult(data)
+      await new Promise(res => setTimeout(res, 400))
       setSessionHistory(prev => [{ winner: data.winner }, ...prev].slice(0, 30))
       if (!muted && audio) {
         if (data.profit > 0) audio.winSound()
@@ -309,70 +327,76 @@ export default function BaccaratGame() {
       {tab === 'game' && (
         <>
           {/* Table area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '10px 12px', gap: 8, minHeight: 0, background: '#0d0d0d' }}>
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 14px', gap: 6, minHeight: 0, background: '#0d0d0d' }}>
 
             {/* Banker zone */}
             <div style={{
-              width: '100%', maxWidth: 460, padding: '10px 14px',
-              background: '#111', borderRadius: 10,
-              border: `2px solid ${result?.winner === 'banker' ? winColor.banker : '#1e1e1e'}`,
-              boxShadow: result?.winner === 'banker' ? `0 0 20px ${winColor.banker}44` : 'none',
-              transition: 'border-color 0.3s, box-shadow 0.3s',
+              width: '100%', maxWidth: 500, padding: '12px 16px',
+              background: '#111', borderRadius: 12,
+              boxShadow: result?.winner === 'banker' ? `0 0 24px ${winColor.banker}55` : 'none',
+              borderLeft: `3px solid ${result?.winner === 'banker' ? winColor.banker : '#222'}`,
+              transition: 'box-shadow 0.4s, border-color 0.4s',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 900, color: winColor.banker, letterSpacing: 2 }}>BANKER</span>
-                <span style={{ fontSize: 22, fontWeight: 900, color: result ? '#fff' : '#252525', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, color: winColor.banker, letterSpacing: 2 }}>BANKER</span>
+                <span style={{ fontSize: 28, fontWeight: 900, color: result ? '#fff' : '#1e1e1e', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {result ? result.bankerScore : '—'}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {[0, 1, 2].map(i => {
+                  if (!dealing && !result) return <CardSlot key={i} />
                   const has = result && i < result.bankerCards.length
+                  const inDeal = dealing && !result
+                  if (!has && !inDeal) return <CardSlot key={i} />
                   return has
-                    ? <PlayingCard key={i} value={result!.bankerCards[i]} pos={i} visible={visibleCards.banker.includes(i)} delay={0} />
-                    : <CardBack key={i} />
+                    ? <PlayingCard key={i} value={result!.bankerCards[i]} pos={i} visible={visibleCards.banker.includes(i)} />
+                    : <PlayingCard key={i} value={0} pos={i} visible={false} />
                 })}
               </div>
             </div>
 
             {/* Middle result */}
-            <div style={{ height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {result ? (
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: winColor[result.winner], letterSpacing: 2 }}>
+                  <div style={{ fontSize: 14, fontWeight: 900, color: winColor[result.winner], letterSpacing: 3 }}>
                     {winLabel[result.winner]}{result.isNatural ? ' ✨' : ''}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: result.profit > 0 ? '#22c55e' : result.profit < 0 ? '#ef4444' : '#888', marginTop: 2 }}>
+                  <div style={{ fontSize: 16, fontWeight: 900, color: result.profit > 0 ? '#22c55e' : result.profit < 0 ? '#ef4444' : '#888', marginTop: 3 }}>
                     {result.profit > 0 ? `+$${result.profit.toFixed(2)}` : result.profit < 0 ? `-$${Math.abs(result.profit).toFixed(2)}` : 'PUSH'}
                   </div>
                 </div>
               ) : dealing ? (
-                <div style={{ fontSize: 10, color: '#e4a832', letterSpacing: 2 }}>РАЗДАЧА...</div>
+                <div style={{ fontSize: 11, color: '#e4a832', letterSpacing: 2 }}>РАЗДАЧА...</div>
               ) : (
-                <div style={{ fontSize: 10, color: '#2a2a2a', letterSpacing: 2 }}>PLACE YOUR BETS</div>
+                <div style={{ fontSize: 10, color: '#252525', letterSpacing: 2 }}>PLACE YOUR BETS</div>
               )}
             </div>
 
             {/* Player zone */}
             <div style={{
-              width: '100%', maxWidth: 460, padding: '10px 14px',
-              background: '#111', borderRadius: 10,
-              border: `2px solid ${result?.winner === 'player' ? winColor.player : '#1e1e1e'}`,
-              boxShadow: result?.winner === 'player' ? `0 0 20px ${winColor.player}44` : 'none',
-              transition: 'border-color 0.3s, box-shadow 0.3s',
+              width: '100%', maxWidth: 500, padding: '12px 16px',
+              background: '#111', borderRadius: 12,
+              boxShadow: result?.winner === 'player' ? `0 0 24px ${winColor.player}55` : 'none',
+              borderLeft: `3px solid ${result?.winner === 'player' ? winColor.player : '#222'}`,
+              transition: 'box-shadow 0.4s, border-color 0.4s',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                <span style={{ fontSize: 9, fontWeight: 900, color: winColor.player, letterSpacing: 2 }}>PLAYER</span>
-                <span style={{ fontSize: 22, fontWeight: 900, color: result ? '#fff' : '#252525', fontVariantNumeric: 'tabular-nums' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <span style={{ fontSize: 10, fontWeight: 900, color: winColor.player, letterSpacing: 2 }}>PLAYER</span>
+                <span style={{ fontSize: 28, fontWeight: 900, color: result ? '#fff' : '#1e1e1e', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
                   {result ? result.playerScore : '—'}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: 6 }}>
+              <div style={{ display: 'flex', gap: 8 }}>
                 {[0, 1, 2].map(i => {
+                  if (!dealing && !result) return <CardSlot key={i} />
                   const has = result && i < result.playerCards.length
+                  const inDeal = dealing && !result
+                  if (!has && !inDeal) return <CardSlot key={i} />
                   return has
-                    ? <PlayingCard key={i} value={result!.playerCards[i]} pos={i + 3} visible={visibleCards.player.includes(i)} delay={0} />
-                    : <CardBack key={i} />
+                    ? <PlayingCard key={i} value={result!.playerCards[i]} pos={i + 3} visible={visibleCards.player.includes(i)} />
+                    : <PlayingCard key={i} value={0} pos={i + 3} visible={false} />
                 })}
               </div>
             </div>

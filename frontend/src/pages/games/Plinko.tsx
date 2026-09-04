@@ -464,7 +464,7 @@ export default function PlinkoGame() {
 
   function onBetDown() {
     play()
-    holdTimerRef.current = setInterval(play, 600)
+    holdTimerRef.current = setInterval(play, 300)
   }
 
   function onBetUp() { stopHold() }

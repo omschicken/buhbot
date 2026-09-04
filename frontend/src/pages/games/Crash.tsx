@@ -90,8 +90,7 @@ export default function CrashGame() {
 
     // Map actual multiplier to Y: curve starts bottom-left, grows exponentially
     const maxM = maxMRef.current
-    const PAD_L = 8, PAD_B = 8, PAD_T = 16, PAD_R = 8
-    const gW = W - PAD_L - PAD_R
+    const PAD_L = 8, PAD_B = 8, PAD_T = 16
     const gH = H - PAD_T - PAD_B
     const toY = (m: number) => PAD_T + gH - ((m - 1) / (maxM - 1)) * gH
     const mapped = pts.map(p => ({ x: PAD_L + p.x, y: Math.max(PAD_T, toY(p.m)) }))

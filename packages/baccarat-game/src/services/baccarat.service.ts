@@ -90,10 +90,16 @@ export class BaccaratService {
     else winner = 'tie';
 
     let payout = 0;
-    if (winner === 'player' && betPlayer > 0) payout = betPlayer * 2;
-    if (winner === 'banker' && betBanker > 0) payout = betBanker * 2 * (1 - HOUSE_EDGE_BANKER);
-    if (winner === 'tie' && betTie > 0) {
-      payout = betTie * 9 + betPlayer + betBanker;
+    if (winner === 'player') {
+      if (betPlayer > 0) payout += betPlayer * 2;
+      // Banker bet lost on player win
+    } else if (winner === 'banker') {
+      if (betBanker > 0) payout += betBanker * 2 * (1 - HOUSE_EDGE_BANKER);
+      // Player bet lost on banker win
+    } else {
+      // Tie: player/banker bets always pushed (returned), tie bet pays 8:1
+      payout += betPlayer + betBanker;
+      if (betTie > 0) payout += betTie * 9;
     }
 
     payout = Math.floor(payout * 100) / 100;

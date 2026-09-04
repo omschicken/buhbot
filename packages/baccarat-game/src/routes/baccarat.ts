@@ -27,11 +27,16 @@ async function debit(userId: string, amount: number, referenceId: string): Promi
 
 async function credit(userId: string, amount: number, referenceId: string): Promise<void> {
   if (amount <= 0) return;
-  await fetch(`${WALLET_URL}/wallet/internal/credit`, {
+  const res = await fetch(`${WALLET_URL}/wallet/internal/credit`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId, amount, type: 'win', game: 'baccarat', referenceId }),
-  }).catch(console.error);
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    console.error(`Credit failed ${res.status}: ${body}`);
+    throw new Error(`Credit failed: ${res.status}`);
+  }
 }
 
 // POST /baccarat/play

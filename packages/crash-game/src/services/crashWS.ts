@@ -13,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'supersecret123casino2024';
 const WALLET_URL = process.env.WALLET_SERVICE_URL || 'http://wallet-service.railway.internal:3002';
 
 export function initCrashWS(server: any) {
-  const wss = new WebSocketServer({ server, path: '/crash' });
+  const wss = new WebSocketServer({ server });
 
   const broadcast = (data: object) => {
     const msg = JSON.stringify(data);

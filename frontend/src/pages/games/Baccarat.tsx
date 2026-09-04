@@ -71,35 +71,45 @@ type Tab = 'game' | 'history' | 'fair'
 type BetSide = 'player' | 'banker' | 'tie'
 
 // ─── Card ─────────────────────────────────────────────────────────────────────
-// Настоящий 3D-переворот: рубашка спереди → лицо после flip
-function PlayingCard({ value, pos, visible }: { value: number; pos: number; visible: boolean; delay?: number }) {
+const CARD_CSS = `
+  .bac-card-wrap { width:58px; height:84px; perspective:600px; flex-shrink:0; }
+  .bac-card-inner {
+    width:100%; height:100%; position:relative;
+    -webkit-transform-style:preserve-3d; transform-style:preserve-3d;
+    transition:transform 0.45s ease;
+  }
+  .bac-card-inner.flipped { -webkit-transform:rotateY(180deg); transform:rotateY(180deg); }
+  .bac-face {
+    position:absolute; inset:0; border-radius:8px;
+    -webkit-backface-visibility:hidden; backface-visibility:hidden;
+  }
+  .bac-back {
+    background:linear-gradient(135deg,#1e3a8a,#1d4ed8);
+    border:1px solid #2563eb; box-shadow:0 3px 10px rgba(0,0,0,.6);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .bac-front {
+    -webkit-transform:rotateY(180deg); transform:rotateY(180deg);
+    background:#fff; border:1px solid #e5e7eb;
+    box-shadow:0 3px 10px rgba(0,0,0,.6);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+  }
+  .bac-slot {
+    width:58px; height:84px; border-radius:8px; flex-shrink:0;
+    border:1px dashed #252525; background:#0d0d0d;
+  }
+`
+
+function PlayingCard({ value, pos, visible }: { value: number; pos: number; visible: boolean }) {
   const suit = suitFor(value, pos)
   const col = cardColor(suit)
   return (
-    <div style={{ width: 58, height: 84, perspective: '600px', flexShrink: 0 }}>
-      <div style={{
-        width: '100%', height: '100%', position: 'relative',
-        transformStyle: 'preserve-3d',
-        transition: 'transform 0.45s ease',
-        transform: visible ? 'rotateY(180deg)' : 'rotateY(0deg)',
-      }}>
-        {/* Рубашка (передняя сторона до переворота) */}
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 8, backfaceVisibility: 'hidden',
-          background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8)',
-          border: '1px solid #2563eb', boxShadow: '0 3px 10px rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-        }}>
-          <div style={{ fontSize: 22, opacity: 0.25, transform: 'scale(1.2)' }}>♦</div>
+    <div className="bac-card-wrap">
+      <div className={`bac-card-inner${visible ? ' flipped' : ''}`}>
+        <div className="bac-face bac-back">
+          <div style={{ fontSize: 22, opacity: 0.2 }}>♦</div>
         </div>
-        {/* Лицо (задняя сторона, видна после переворота) */}
-        <div style={{
-          position: 'absolute', inset: 0, borderRadius: 8,
-          backfaceVisibility: 'hidden', transform: 'rotateY(180deg)',
-          background: '#fff', border: '1px solid #e5e7eb',
-          boxShadow: '0 3px 10px rgba(0,0,0,0.6)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-        }}>
+        <div className="bac-face bac-front">
           <div style={{ fontSize: 15, fontWeight: 900, color: col, lineHeight: 1 }}>{CARD_NAMES[value]}</div>
           <div style={{ fontSize: 18, color: col, lineHeight: 1 }}>{suit}</div>
         </div>
@@ -107,14 +117,7 @@ function PlayingCard({ value, pos, visible }: { value: number; pos: number; visi
     </div>
   )
 }
-function CardSlot() {
-  return (
-    <div style={{
-      width: 58, height: 84, borderRadius: 8, flexShrink: 0,
-      border: '1px dashed #252525', background: '#0d0d0d',
-    }} />
-  )
-}
+function CardSlot() { return <div className="bac-slot" /> }
 
 // ─── Chips ───────────────────────────────────────────────────────────────────
 const CHIPS = [
@@ -543,7 +546,7 @@ export default function BaccaratGame() {
         </div>
       )}
 
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+      <style>{CARD_CSS}</style>
     </div>
   )
 }

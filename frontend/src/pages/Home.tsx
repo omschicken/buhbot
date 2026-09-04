@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useJackpot, usePaidToday, useOnlinePlayers } from '../hooks/useLiveCounter'
 
-const CATEGORIES = ['All', 'Slots', 'Live', 'Table', 'Crash', 'New']
+const CATEGORIES = ['All', 'Originals', 'Slots', 'Live', 'Table', 'Crash', 'New']
 
 const GAMES = [
-  { id: 'crash', name: 'Crash', provider: 'APEXGAME Originals', category: 'Crash', rtp: 99, hot: true, img: '🚀', internal: true, path: '/games/crash' },
-  { id: 'baccarat', name: 'Baccarat', provider: 'APEXGAME Originals', category: 'Table', rtp: 98.9, hot: true, img: '🎴', internal: true, path: '/games/baccarat' },
+  { id: 'crash', name: 'Crash', provider: 'APEXGAME Originals', category: 'Originals', rtp: 99, hot: true, img: '🚀', internal: true, path: '/games/crash' },
+  { id: 'baccarat', name: 'Baccarat', provider: 'APEXGAME Originals', category: 'Originals', rtp: 98.9, hot: true, img: '🎴', internal: true, path: '/games/baccarat' },
   { id: 1, name: 'Aviator', provider: 'Spribe', category: 'Crash', rtp: 97, hot: true, img: '✈️' },
   { id: 2, name: 'Sweet Bonanza', provider: 'Pragmatic', category: 'Slots', rtp: 96.5, hot: true, img: '\u{1F36C}' },
   { id: 3, name: 'Lightning Roulette', provider: 'Evolution', category: 'Live', rtp: 97.3, hot: false, img: '⚡' },

@@ -303,8 +303,8 @@ export default function MinesGame() {
 
   const refreshBalance = useCallback(async () => {
     try {
-      const b = await getBalance()
-      setBalance(b)
+      const r = await getBalance()
+      setBalance(r.data?.balance ?? 0)
     } catch {}
   }, [])
 

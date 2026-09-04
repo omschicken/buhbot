@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useUIStore } from '../../store/useUIStore'
 
-const CRASH_WS_URL = import.meta.env.VITE_CRASH_WS_URL || 'wss://crash-game-production.up.railway.app/crash'
+const CRASH_WS_URL = import.meta.env.VITE_CRASH_WS_URL || 'wss://buhbot-production-ddcd.up.railway.app/crash'
 
 type GameStatus = 'waiting' | 'betting' | 'running' | 'crashed'
 

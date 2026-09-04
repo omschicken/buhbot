@@ -54,16 +54,18 @@ interface HistoryEntry {
 
 // ─── Canvas renderer ──────────────────────────────────────────────────────────
 interface PinGlow { row: number; col: number; alpha: number }
+interface ActiveBall { id: number; x: number; y: number }
+interface FloatText { id: number; x: number; y: number; text: string; color: string; alpha: number }
 
 function drawBoard(
   ctx: CanvasRenderingContext2D,
   W: number, H: number,
   rows: Rows,
   mults: number[],
-  ball: { x: number; y: number } | null,
+  balls: ActiveBall[],
   glows: PinGlow[],
-  activeBucket: number | null,
-  bucketPop: number,
+  floats: FloatText[],
+  activeBuckets: Map<number, number>,
 ) {
   ctx.clearRect(0, 0, W, H)
 
@@ -118,8 +120,8 @@ function drawBoard(
     const bx = padX + i * bw
     const m = mults[i]
     const col = bucketColor(m)
-    const isActive = activeBucket === i
-    const pop = isActive ? bucketPop : 0
+    const pop = activeBuckets.get(i) ?? 0
+    const isActive = pop > 0
     const scale = 1 + pop * 0.08
     const bwS = bw * scale
     const bhS = buckH * scale
@@ -159,8 +161,8 @@ function drawBoard(
     ctx.fillText(`${m}x`, bx + bw / 2, by + buckH / 2)
   }
 
-  // Ball
-  if (ball) {
+  // All balls
+  for (const ball of balls) {
     ctx.save()
     const gr = ctx.createRadialGradient(ball.x - 2, ball.y - 2, 0, ball.x, ball.y, 9)
     gr.addColorStop(0, '#ff8888')
@@ -171,6 +173,20 @@ function drawBoard(
     ctx.shadowColor = '#ff4444'
     ctx.shadowBlur = 14
     ctx.fill()
+    ctx.restore()
+  }
+
+  // Floating result texts
+  for (const f of floats) {
+    ctx.save()
+    ctx.globalAlpha = f.alpha
+    ctx.font = 'bold 13px system-ui'
+    ctx.textAlign = 'center'
+    ctx.textBaseline = 'middle'
+    ctx.fillStyle = f.color
+    ctx.shadowColor = f.color
+    ctx.shadowBlur = 8
+    ctx.fillText(f.text, f.x, f.y)
     ctx.restore()
   }
 }
@@ -229,24 +245,30 @@ export default function PlinkoGame() {
   const [bet, setBet] = useState('1.00')
   const [risk, setRisk] = useState<Risk>('medium')
   const [rows, setRows] = useState<Rows>(16)
-  const [playing, setPlaying] = useState(false)
   const [lastResult, setLastResult] = useState<RoundResult | null>(null)
-  const [showResult, setShowResult] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [sesHist, setSesHist] = useState<Array<{ m: number; bucket: number; rows: Rows }>>([])
   const [customSeed, setCustomSeed] = useState('')
+  const [activeBalls, setActiveBalls] = useState(0)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const animRef = useRef<number>(0)
   const glowsRef = useRef<PinGlow[]>([])
-  const ballRef = useRef<{ x: number; y: number } | null>(null)
-  const activeBucketRef = useRef<number | null>(null)
-  const bucketPopRef = useRef(0)
+  const ballsRef = useRef<ActiveBall[]>([])
+  const floatsRef = useRef<FloatText[]>([])
+  const activeBucketsRef = useRef<Map<number, number>>(new Map())
+  const ballIdRef = useRef(0)
+  const floatIdRef = useRef(0)
+  const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const rowsRef = useRef<Rows>(rows)
   const riskRef = useRef<Risk>(risk)
+  const betRef = useRef(bet)
+  const customSeedRef = useRef(customSeed)
 
   useEffect(() => { rowsRef.current = rows }, [rows])
   useEffect(() => { riskRef.current = risk }, [risk])
+  useEffect(() => { betRef.current = bet }, [bet])
+  useEffect(() => { customSeedRef.current = customSeed }, [customSeed])
 
   // ── Canvas sizing ──────────────────────────────────────────────────────────
   const getSize = useCallback(() => {
@@ -269,15 +291,24 @@ export default function PlinkoGame() {
     if (!ctx) return
     const { W, H } = getSize()
     const mults = MULTIPLIERS[riskRef.current][rowsRef.current]
-    drawBoard(ctx, W, H, rowsRef.current, mults, ballRef.current, glowsRef.current, activeBucketRef.current, bucketPopRef.current)
+    drawBoard(ctx, W, H, rowsRef.current, mults, ballsRef.current, glowsRef.current, floatsRef.current, activeBucketsRef.current)
 
     // Decay glows
     glowsRef.current = glowsRef.current
       .map(g => ({ ...g, alpha: g.alpha - 0.04 }))
       .filter(g => g.alpha > 0)
 
-    // Decay bucket pop
-    if (bucketPopRef.current > 0) bucketPopRef.current = Math.max(0, bucketPopRef.current - 0.04)
+    // Decay bucket pops
+    for (const [k, v] of activeBucketsRef.current) {
+      const next = v - 0.04
+      if (next <= 0) activeBucketsRef.current.delete(k)
+      else activeBucketsRef.current.set(k, next)
+    }
+
+    // Decay float texts
+    floatsRef.current = floatsRef.current
+      .map(f => ({ ...f, y: f.y - 0.5, alpha: f.alpha - 0.012 }))
+      .filter(f => f.alpha > 0)
 
     animRef.current = requestAnimationFrame(renderRef.current)
   }
@@ -311,19 +342,17 @@ export default function PlinkoGame() {
 
   function getBucketY(H: number) { return H - 34 / 2 }
 
-  // ── Animate ball along path ────────────────────────────────────────────────
-  async function animateBall(path: number[], bucket: number, r: Rows) {
+  // ── Animate one ball along path (independent, supports multiple) ──────────
+  async function animateBall(path: number[], bucket: number, r: Rows, multiplier: number, profit: number) {
     const canvas = canvasRef.current
     if (!canvas) return
     const W = canvas.width; const H = canvas.height
 
-    // Start above board
-    const startX = W / 2
+    const ballId = ++ballIdRef.current
+    const startX = W / 2 + (Math.random() - 0.5) * 4 // tiny jitter so multiple balls don't overlap
     const startY = -12
-    ballRef.current = { x: startX, y: startY }
+    ballsRef.current.push({ id: ballId, x: startX, y: startY })
 
-    // Compute positions for each step
-    // col in our grid = number of R moves so far
     const positions: Array<{ x: number; y: number; row: number; col: number }> = []
     let col = 0
     for (let row = 0; row < r; row++) {
@@ -331,24 +360,22 @@ export default function PlinkoGame() {
       positions.push({ x: pinPos.x, y: pinPos.y, row, col: col + 1 })
       if (path[row] === 1) col++
     }
-    // Final: bucket center
     const finalX = getBucketX(bucket, W, r)
     const finalY = getBucketY(H)
+    const delay = Math.max(50, Math.min(120, 1000 / r))
 
-    const delay = Math.max(60, Math.min(150, 1200 / r))
+    function setBallPos(x: number, y: number) {
+      const idx = ballsRef.current.findIndex(b => b.id === ballId)
+      if (idx !== -1) ballsRef.current[idx] = { id: ballId, x, y }
+    }
 
-    async function tweenTo(
-      fromX: number, fromY: number,
-      toX: number, toY: number,
-      ms: number,
-      onDone?: () => void,
-    ) {
+    function tweenTo(fx: number, fy: number, tx: number, ty: number, ms: number, onDone?: () => void) {
       return new Promise<void>(resolve => {
         const start = performance.now()
         function step(now: number) {
           const t = Math.min(1, (now - start) / ms)
           const ease = 1 - Math.pow(1 - t, 3)
-          ballRef.current = { x: fromX + (toX - fromX) * ease, y: fromY + (toY - fromY) * ease }
+          setBallPos(fx + (tx - fx) * ease, fy + (ty - fy) * ease)
           if (t < 1) requestAnimationFrame(step)
           else { if (onDone) onDone(); resolve() }
         }
@@ -357,19 +384,28 @@ export default function PlinkoGame() {
     }
 
     let prevX = startX; let prevY = startY
-    for (let i = 0; i < positions.length; i++) {
-      const { x, y, row, col: pc } = positions[i]
+    for (const { x, y, row, col: pc } of positions) {
       await tweenTo(prevX, prevY, x, y, delay, () => {
         glowsRef.current.push({ row, col: pc, alpha: 1 })
       })
       prevX = x; prevY = y
     }
-
-    // Slide to bucket
     await tweenTo(prevX, prevY, finalX, finalY, delay * 1.5)
-    ballRef.current = null
-    activeBucketRef.current = bucket
-    bucketPopRef.current = 1
+
+    // Remove ball, activate bucket
+    ballsRef.current = ballsRef.current.filter(b => b.id !== ballId)
+    activeBucketsRef.current.set(bucket, 1)
+
+    // Floating result text
+    const profitText = profit >= 0 ? `+$${profit.toFixed(2)}` : `-$${Math.abs(profit).toFixed(2)}`
+    floatsRef.current.push({
+      id: ++floatIdRef.current,
+      x: finalX,
+      y: finalY - 30,
+      text: `${multiplier}× ${profitText}`,
+      color: profit >= 0 ? '#22c55e' : '#ef4444',
+      alpha: 1,
+    })
   }
 
   // ── Load history ───────────────────────────────────────────────────────────
@@ -386,42 +422,56 @@ export default function PlinkoGame() {
     loadHist()
   }, [token])
 
-  // ── Play ───────────────────────────────────────────────────────────────────
-  const play = async () => {
-    if (playing) return
-    const betNum = parseFloat(bet)
+  // ── Play one ball (fire-and-forget, multiple can run in parallel) ─────────
+  const play = useCallback(async () => {
+    const betNum = parseFloat(betRef.current)
     if (!betNum || betNum <= 0) { addToast('Введите сумму ставки', 'error'); return }
-    setPlaying(true)
-    setShowResult(false)
-    setLastResult(null)
-    activeBucketRef.current = null
-    bucketPopRef.current = 0
 
+    setActiveBalls(n => n + 1)
     try {
       const r = await api.post('/plinko/play', {
-        betAmount: betNum, risk, rows,
-        clientSeed: customSeed || undefined,
+        betAmount: betNum,
+        risk: riskRef.current,
+        rows: rowsRef.current,
+        clientSeed: customSeedRef.current || undefined,
       })
       const d: RoundResult = r.data.data
       setLastResult(d)
-      await animateBall(d.path, d.bucket, rows)
-      setShowResult(true)
-      setSesHist(p => [{ m: d.multiplier, bucket: d.bucket, rows }, ...p].slice(0, 30))
+      setSesHist(p => [{ m: d.multiplier, bucket: d.bucket, rows: rowsRef.current }, ...p].slice(0, 50))
       getBalance().then(res => setBalance(res.data?.balance ?? 0)).catch(() => {})
-      loadHist()
-      setTimeout(() => { setShowResult(false); setPlaying(false) }, 2500)
+      // Animate — don't await, let it run independently
+      animateBall(d.path, d.bucket, rowsRef.current, d.multiplier, d.profit)
+        .then(() => {
+          setActiveBalls(n => Math.max(0, n - 1))
+          loadHist()
+        })
     } catch (e: any) {
-      addToast(e.response?.data?.error || e.message || 'Ошибка', 'error')
-      setPlaying(false)
+      setActiveBalls(n => Math.max(0, n - 1))
+      const msg = e.response?.data?.error || e.message || 'Ошибка'
+      if (msg === 'Insufficient funds') {
+        stopHold()
+        addToast('Недостаточно средств', 'error')
+      } else {
+        addToast(msg, 'error')
+      }
     }
+  }, [addToast, setBalance, loadHist])
+
+  // ── Hold-to-bet ────────────────────────────────────────────────────────────
+  function stopHold() {
+    if (holdTimerRef.current) { clearInterval(holdTimerRef.current); holdTimerRef.current = null }
   }
 
-  const totalProfit = sesHist.reduce((s, h) => {
-    const idx = MULTIPLIERS[risk][h.rows]
-      ? MULTIPLIERS[risk][h.rows][h.bucket]
-      : h.m
-    return s + (idx - 1) * parseFloat(bet || '0')
-  }, 0)
+  function onBetDown() {
+    play()
+    holdTimerRef.current = setInterval(play, 400)
+  }
+
+  function onBetUp() { stopHold() }
+
+  useEffect(() => () => stopHold(), [])
+
+  const totalProfit = sesHist.reduce((s, h) => s + (h.m - 1) * parseFloat(bet || '0'), 0)
 
   const mults = MULTIPLIERS[risk][rows]
 
@@ -459,11 +509,10 @@ export default function PlinkoGame() {
                 type="number" min="0.10" step="0.10"
                 value={bet}
                 onChange={e => setBet(e.target.value)}
-                disabled={playing}
               />
               <div className="pk-half-row" style={{ marginTop: 4 }}>
-                <button className="pk-half" disabled={playing} onClick={() => setBet(v => (+(parseFloat(v) / 2).toFixed(2)).toString())}>½</button>
-                <button className="pk-half" disabled={playing} onClick={() => setBet(v => (+(parseFloat(v) * 2).toFixed(2)).toString())}>2×</button>
+                <button className="pk-half" onClick={() => setBet(v => (+(parseFloat(v) / 2).toFixed(2)).toString())}>½</button>
+                <button className="pk-half" onClick={() => setBet(v => (+(parseFloat(v) * 2).toFixed(2)).toString())}>2×</button>
               </div>
             </div>
 
@@ -477,7 +526,7 @@ export default function PlinkoGame() {
                     <button key={r}
                       className={`pk-seg-btn${risk === r ? ' on' : ''}`}
                       style={{ '--c': col } as any}
-                      onClick={() => !playing && setRisk(r)}
+                      onClick={() => setRisk(r)}
                     >
                       {r === 'low' ? 'Low' : r === 'medium' ? 'Mid' : 'High'}
                     </button>
@@ -494,7 +543,7 @@ export default function PlinkoGame() {
                   <button key={n}
                     className={`pk-seg-btn${rows === n ? ' on' : ''}`}
                     style={{ '--c': '#3b82f6' } as any}
-                    onClick={() => !playing && setRows(n)}
+                    onClick={() => setRows(n)}
                   >
                     {n}
                   </button>
@@ -532,9 +581,16 @@ export default function PlinkoGame() {
               </div>
             )}
 
-            {/* BET button */}
-            <button className="pk-deal" onClick={play} disabled={playing}>
-              {playing ? 'ИГРА...' : 'СТАВИТЬ'}
+            {/* BET button — hold to auto-bet */}
+            <button
+              className="pk-deal"
+              onMouseDown={onBetDown}
+              onMouseUp={onBetUp}
+              onMouseLeave={onBetUp}
+              onTouchStart={e => { e.preventDefault(); onBetDown() }}
+              onTouchEnd={onBetUp}
+            >
+              {activeBalls > 0 ? `● ${activeBalls} шар${activeBalls > 1 ? 'a' : ''}` : 'СТАВИТЬ'}
             </button>
           </div>
 
@@ -549,14 +605,11 @@ export default function PlinkoGame() {
               ))}
             </div>
 
-            {/* Result overlay */}
-            {lastResult && showResult && (
-              <div className="pk-result-overlay show" style={{ position: 'absolute', top: '45%', left: '50%' }}>
+            {/* Last big win flash */}
+            {lastResult && lastResult.multiplier >= 10 && (
+              <div key={lastResult.roundId} className="pk-result-overlay show" style={{ position: 'absolute', top: '30%', left: '50%', pointerEvents: 'none' }}>
                 <div className="pk-result-multi" style={{ color: bucketColor(lastResult.multiplier) }}>
                   {lastResult.multiplier}×
-                </div>
-                <div className="pk-result-profit" style={{ color: lastResult.profit >= 0 ? '#22c55e' : '#ef4444' }}>
-                  {lastResult.profit >= 0 ? '+' : ''} ${lastResult.profit.toFixed(2)}
                 </div>
               </div>
             )}

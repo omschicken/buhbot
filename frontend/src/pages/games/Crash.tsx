@@ -93,12 +93,16 @@ export default function CrashGame() {
     const isCrashed = stateRef.current.status === 'crashed'
     const color = isCrashed ? '#ef4444' : '#00e676'
 
-    // Динамический X: текущий момент времени = 75% ширины
+    // Динамический X: текущий момент = 75% ширины
     const maxT = pts[pts.length - 1].t / 0.75
-    // Динамический Y: текущий множитель на ~75% высоты
+    // Логарифмический Y: log(m)/log(maxM) — равномерно распределяет 1x–100x
     const maxM = maxMRef.current
+    const logMax = Math.log(Math.max(maxM, 1.01))
     const toX = (t: number) => PAD_L + Math.min(gW, (t / maxT) * gW)
-    const toY = (m: number) => PAD_T + gH - Math.min(gH, ((m - 1) / (maxM - 1)) * gH)
+    const toY = (m: number) => {
+      const logRatio = Math.log(Math.max(m, 1.001)) / logMax
+      return PAD_T + gH - Math.min(gH, logRatio * gH)
+    }
 
     const mapped = pts.map(p => ({ x: toX(p.t), y: Math.max(PAD_T, toY(p.m)) }))
 

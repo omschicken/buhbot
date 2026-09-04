@@ -14,6 +14,7 @@ interface Bet {
   username: string;
   amount: number;
   autoCashout?: number;
+  slotId?: string | null;
   cashedOut: boolean;
   cashoutAt?: number;
   profit?: number;
@@ -179,14 +180,14 @@ export class CrashEngine extends EventEmitter {
     setTimeout(() => this.startNewRound(), 3000);
   }
 
-  async placeBet(userId: string, username: string, amount: number, autoCashout?: number): Promise<string> {
-    if (this.status !== 'betting') throw new Error('Betting phase ended');
+  async placeBet(userId: string, username: string, amount: number, autoCashout?: number, slotId?: string | null): Promise<string> {
+    if (this.status !== 'betting') throw new Error('Приём ставок завершён');
     const userBets = this.userBetIds.get(userId) || [];
-    if (userBets.length >= 5) throw new Error('Maximum 5 bets per round');
-    if (amount <= 0) throw new Error('Invalid amount');
+    if (userBets.length >= 5) throw new Error('Максимум 5 ставок за раунд');
+    if (amount <= 0) throw new Error('Неверная сумма');
 
     const betId = uuidv4();
-    const bet: Bet = { id: betId, userId, username, amount, autoCashout, cashedOut: false };
+    const bet: Bet = { id: betId, userId, username, amount, autoCashout, slotId, cashedOut: false };
 
     await pool.query(
       `INSERT INTO crash_bets (id, round_id, user_id, username, bet_amount, auto_cashout)
@@ -227,7 +228,7 @@ export class CrashEngine extends EventEmitter {
       [multiplier, profit, bet.id]
     );
 
-    this.emit('cashout', { betId, userId: bet.userId, username: bet.username, amount: bet.amount, multiplier, profit });
+    this.emit('cashout', { betId, slotId: bet.slotId, userId: bet.userId, username: bet.username, amount: bet.amount, multiplier, profit });
     return profit;
   }
 

@@ -402,7 +402,7 @@ export default function CrashGame() {
           <div style={{ background: '#111', borderTop: '1px solid #1e1e1e', padding: '8px 10px', flexShrink: 0 }}>
             <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
               {slots.map((slot) => {
-                const locked = isRunning || slot.hasBet
+                const locked = slot.hasBet  // редактировать можно всегда, ставить только в betting
                 const canBet = isBetting && !slot.hasBet && !!token
                 return (
                   <div key={slot.id} style={{ flex: '0 0 auto', minWidth: 200, maxWidth: 260, background: '#161616', borderRadius: 10, border: '1px solid #222', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -432,7 +432,7 @@ export default function CrashGame() {
                       <input type="checkbox" id={`ac-${slot.id}`} checked={slot.useAutoCashout} onChange={e => updateSlot(slot.id, { useAutoCashout: e.target.checked })} disabled={locked} style={{ cursor: 'pointer', accentColor: '#e4a832' }} />
                       <label htmlFor={`ac-${slot.id}`} style={{ fontSize: 8, color: slot.useAutoCashout ? '#aaa' : '#444', cursor: 'pointer', fontWeight: 700, letterSpacing: 0.5 }}>АВТО</label>
                       <input value={slot.autoCashout} onChange={e => updateSlot(slot.id, { autoCashout: e.target.value })}
-                        type="number" min="1.01" step="0.01" placeholder="2.00x"
+                        type="number" min="1.01" step="0.01" placeholder="2.00"
                         disabled={!slot.useAutoCashout || locked}
                         style={{ flex: 1, minWidth: 0, background: '#1a1a1a', border: `1px solid ${slot.useAutoCashout ? '#252525' : '#1a1a1a'}`, borderRadius: 6, padding: '5px 7px', color: slot.useAutoCashout ? '#fff' : '#2a2a2a', fontSize: 11, outline: 'none' }} />
                     </div>

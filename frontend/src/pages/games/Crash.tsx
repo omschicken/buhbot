@@ -18,6 +18,9 @@ interface GameState {
 
 const cpColor = (x: number) => x < 2 ? '#ef4444' : x < 5 ? '#f59e0b' : '#22c55e'
 
+// Store raw data per point for rescaling
+interface Pt { x: number; y: number; logM: number }
+
 export default function CrashGame() {
   const { token, user, balance } = useAuthStore()
   const { addToast } = useUIStore()
@@ -43,7 +46,8 @@ export default function CrashGame() {
 
   const wsRef = useRef<WebSocket | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
-  const pointsRef = useRef<{ x: number; y: number }[]>([])
+  const ptsRef = useRef<Pt[]>([])
+  const maxLogRef = useRef(Math.log(2))
   const stateRef = useRef<GameState>({
     roundId: null, roundNumber: 0, status: 'waiting', multiplier: 1,
     serverSeedHash: '', clientSeed: '', bettingEndsAt: 0, startTime: 0, bets: []
@@ -73,63 +77,46 @@ export default function CrashGame() {
     const H = canvas.height / dpr
     ctx.clearRect(0, 0, W, H)
 
-    // Grid lines
+    // Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.04)'
     ctx.lineWidth = 1
-    for (let i = 1; i <= 5; i++) {
-      const y = H * i / 5
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
-    }
-    for (let i = 1; i <= 8; i++) {
-      const x = W * i / 8
-      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
-    }
+    for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke() }
+    for (let i = 1; i <= 6; i++) { ctx.beginPath(); ctx.moveTo(W * i / 6, 0); ctx.lineTo(W * i / 6, H); ctx.stroke() }
 
-    const pts = pointsRef.current
+    const pts = ptsRef.current
     if (pts.length < 2) return
-
     const isCrashed = stateRef.current.status === 'crashed'
     const color = isCrashed ? '#ef4444' : '#00e676'
 
-    // Glow pass
+    // Recompute y from stored logM with current maxLog
+    const ml = maxLogRef.current
+    const mapped = pts.map(p => ({
+      x: p.x,
+      y: Math.max(8, H - 8 - (p.logM / ml) * (H - 20))
+    }))
+
+    // Glow line
     ctx.save()
-    ctx.shadowColor = color
-    ctx.shadowBlur = 20
-    ctx.beginPath()
-    ctx.moveTo(pts[0].x, pts[0].y)
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
-    ctx.strokeStyle = color
-    ctx.lineWidth = 2.5
-    ctx.lineJoin = 'round'
-    ctx.lineCap = 'round'
-    ctx.stroke()
+    ctx.shadowColor = color; ctx.shadowBlur = 16
+    ctx.beginPath(); ctx.moveTo(mapped[0].x, mapped[0].y)
+    for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y)
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke()
     ctx.restore()
 
     // Fill
-    ctx.save()
-    ctx.beginPath()
-    ctx.moveTo(pts[0].x, pts[0].y)
-    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
-    ctx.lineTo(pts[pts.length - 1].x, H)
-    ctx.lineTo(pts[0].x, H)
-    ctx.closePath()
+    ctx.beginPath(); ctx.moveTo(mapped[0].x, mapped[0].y)
+    for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y)
+    ctx.lineTo(mapped[mapped.length - 1].x, H); ctx.lineTo(mapped[0].x, H); ctx.closePath()
     const g = ctx.createLinearGradient(0, 0, 0, H)
-    g.addColorStop(0, isCrashed ? 'rgba(239,68,68,0.18)' : 'rgba(0,230,118,0.15)')
+    g.addColorStop(0, isCrashed ? 'rgba(239,68,68,0.2)' : 'rgba(0,230,118,0.15)')
     g.addColorStop(1, 'rgba(0,0,0,0)')
-    ctx.fillStyle = g
-    ctx.fill()
-    ctx.restore()
+    ctx.fillStyle = g; ctx.fill()
 
     // Tip dot
-    const tip = pts[pts.length - 1]
-    ctx.save()
-    ctx.shadowColor = color
-    ctx.shadowBlur = 20
-    ctx.beginPath()
-    ctx.arc(tip.x, tip.y, 5, 0, Math.PI * 2)
-    ctx.fillStyle = '#fff'
-    ctx.fill()
-    ctx.restore()
+    const tip = mapped[mapped.length - 1]
+    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 20
+    ctx.beginPath(); ctx.arc(tip.x, tip.y, 5, 0, Math.PI * 2)
+    ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore()
   }, [])
 
   const initCanvas = useCallback(() => {
@@ -147,31 +134,12 @@ export default function CrashGame() {
     if (!canvas) return
     const dpr = window.devicePixelRatio || 1
     const W = canvas.width / dpr
-    const H = canvas.height / dpr
     const elapsed = (Date.now() - startTime) / 1000
-
-    // x: grows with time, starts at left edge
-    const x = Math.min(W - 16, 16 + (elapsed / 60) * (W - 32))
-
-    // y: dynamic log scale — current multiplier fills ~75% of graph height
+    const x = Math.min(W - 16, 16 + (elapsed / 45) * (W - 32))
     const logM = Math.log(Math.max(1.001, multiplier))
-    const maxLog = Math.max(logM * 1.35, Math.log(2)) // always show at least 2x range
-    const y = H - 8 - ((logM / maxLog) * (H - 24))
-
-    // Rescale all existing points when scale changes
-    const pts = pointsRef.current
-    if (pts.length > 0) {
-      const prevMaxLog = pts[pts.length - 1]._maxLog ?? maxLog
-      if (Math.abs(prevMaxLog - maxLog) > 0.01) {
-        for (const p of pts) {
-          const origLogM = p._logM ?? 0
-          p.y = H - 8 - ((origLogM / maxLog) * (H - 24))
-        }
-      }
-    }
-
-    const pt: any = { x, y: Math.max(8, y), _logM: logM, _maxLog: maxLog }
-    pointsRef.current.push(pt)
+    // Grow maxLog so current point is at ~75% height
+    if (logM * 1.35 > maxLogRef.current) maxLogRef.current = logM * 1.35
+    ptsRef.current.push({ x, y: 0, logM })
     drawGraph()
   }, [drawGraph])
 
@@ -187,7 +155,7 @@ export default function CrashGame() {
 
   useEffect(() => {
     initCanvas()
-    const onResize = () => { initCanvas(); pointsRef.current = []; drawGraph() }
+    const onResize = () => { initCanvas(); ptsRef.current = []; maxLogRef.current = Math.log(2); drawGraph() }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [initCanvas, drawGraph])
@@ -202,17 +170,19 @@ export default function CrashGame() {
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data)
       if (msg.type === 'init') {
-        stateRef.current = msg.state as GameState
-        setState(msg.state as GameState)
+        stateRef.current = msg.state; setState(msg.state)
+        if (msg.state.status === 'running' && msg.state.multiplier > 1) {
+          maxLogRef.current = Math.max(Math.log(msg.state.multiplier) * 1.35, Math.log(2))
+        }
       }
       if (msg.type === 'round_start') {
-        pointsRef.current = []
+        ptsRef.current = []; maxLogRef.current = Math.log(2)
         setCrashed(false); setCrashedAt(1); setHasBet(false); setCashedOut(false); setMyProfit(null)
         const s = { ...stateRef.current, roundId: msg.roundId, roundNumber: msg.roundNumber, serverSeedHash: msg.serverSeedHash, clientSeed: msg.clientSeed, status: 'betting' as GameStatus, multiplier: 1, bettingEndsAt: msg.bettingEndsAt, bets: [] }
         stateRef.current = s; setState(s)
       }
       if (msg.type === 'round_running') {
-        pointsRef.current = []
+        ptsRef.current = []; maxLogRef.current = Math.log(2)
         setState(prev => { const s = { ...prev, status: 'running' as GameStatus, startTime: msg.startTime, multiplier: 1 }; stateRef.current = s; return s })
       }
       if (msg.type === 'tick') {
@@ -270,33 +240,32 @@ export default function CrashGame() {
 
   if (!wsConnected) return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#0d0d0d', color: '#fff', gap: 16 }}>
-      <div style={{ fontSize: 48 }}>🚀</div>
-      <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: 1 }}>CRASH</div>
-      <div style={{ width: 32, height: 32, border: '3px solid #1e1e1e', borderTopColor: '#e4a832', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      <div style={{ fontSize: 12, color: '#444' }}>Подключение к серверу...</div>
+      <div style={{ fontSize: 44 }}>🚀</div>
+      <div style={{ fontSize: 18, fontWeight: 800, letterSpacing: 1 }}>CRASH</div>
+      <div style={{ width: 28, height: 28, border: '3px solid #1e1e1e', borderTopColor: '#e4a832', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ fontSize: 12, color: '#444' }}>Подключение...</div>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
     </div>
   )
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100vh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100svh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
       <ToastContainer />
 
       {/* ── HEADER ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '0 12px', height: 50, background: '#111', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
+      <div className="crash-header" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', height: 48, background: '#111', borderBottom: '1px solid #1e1e1e', flexShrink: 0, minWidth: 0 }}>
         <button onClick={() => navigate('/')}
-          style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 8, color: '#aaa', fontSize: 16, cursor: 'pointer', padding: '6px 10px', lineHeight: 1, display: 'flex', alignItems: 'center' }}>
+          style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 7, color: '#aaa', fontSize: 15, cursor: 'pointer', padding: '5px 9px', lineHeight: 1, flexShrink: 0 }}>
           ←
         </button>
-        <span style={{ fontSize: 14, fontWeight: 800, color: '#fff', letterSpacing: 0.5 }}>🚀 CRASH</span>
+        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: 0.5, flexShrink: 0 }}>🚀 CRASH</span>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 2, marginLeft: 8, background: '#161616', borderRadius: 8, padding: 3 }}>
-          {([['game', 'Игра'], ['my-bets', 'Мои ставки'], ['fair', 'Честность']] as [Tab, string][]).map(([t, label]) => (
+        <div style={{ display: 'flex', background: '#161616', borderRadius: 7, padding: 2, overflow: 'hidden', flexShrink: 0 }}>
+          {([['game', 'Игра'], ['my-bets', 'Ставки'], ['fair', 'Честность']] as [Tab, string][]).map(([t, label]) => (
             <button key={t} onClick={() => setTab(t)}
-              style={{ padding: '5px 12px', borderRadius: 6, border: 'none', fontSize: 11, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
-                background: tab === t ? '#252525' : 'none',
-                color: tab === t ? '#fff' : '#555' }}>
+              style={{ padding: '5px 9px', borderRadius: 5, border: 'none', fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
+                background: tab === t ? '#252525' : 'none', color: tab === t ? '#fff' : '#555' }}>
               {label}
             </button>
           ))}
@@ -305,35 +274,29 @@ export default function CrashGame() {
         <div style={{ flex: 1 }} />
 
         {token && user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
             <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: 9, color: '#555', letterSpacing: 0.5 }}>БАЛАНС</div>
-              <div style={{ fontSize: 14, fontWeight: 900, color: '#e4a832' }}>${Number(balance).toFixed(2)}</div>
-            </div>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1e1e1e', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: '#aaa' }}>
-              {(user as any).username?.[0]?.toUpperCase() || '?'}
+              <div style={{ fontSize: 8, color: '#555', letterSpacing: 0.5 }}>БАЛАНС</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: '#e4a832' }}>${Number(balance).toFixed(2)}</div>
             </div>
           </div>
         ) : (
           <button onClick={() => navigate('/login')}
-            style={{ padding: '7px 16px', borderRadius: 8, border: 'none', background: '#e4a832', color: '#000', fontSize: 12, fontWeight: 800, cursor: 'pointer' }}>
+            style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: '#e4a832', color: '#000', fontSize: 11, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
             Войти
           </button>
         )}
 
-        {/* Fullscreen button */}
-        <button onClick={toggleFullscreen} title={fullscreen ? 'Выйти из полноэкранного' : 'Полный экран'}
-          style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 8, color: '#aaa', fontSize: 16, cursor: 'pointer', padding: '6px 10px', lineHeight: 1, transition: 'all 0.15s' }}
-          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#555'; (e.currentTarget as HTMLButtonElement).style.color = '#fff' }}
-          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#333'; (e.currentTarget as HTMLButtonElement).style.color = '#aaa' }}>
+        <button onClick={toggleFullscreen} title={fullscreen ? 'Выйти' : 'Полный экран'}
+          className="crash-fs-btn"
+          style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 7, color: '#888', fontSize: 14, cursor: 'pointer', padding: '5px 8px', lineHeight: 1, flexShrink: 0 }}>
           {fullscreen ? '⊡' : '⛶'}
         </button>
       </div>
 
-      {/* Fullscreen overlay exit */}
       {fullscreen && (
         <button onClick={toggleFullscreen}
-          style={{ position: 'fixed', top: 12, right: 12, zIndex: 9999, background: 'rgba(0,0,0,0.8)', border: '1px solid #444', borderRadius: 8, color: '#ccc', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '8px 14px' }}>
+          style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999, background: 'rgba(0,0,0,0.85)', border: '1px solid #444', borderRadius: 8, color: '#ccc', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '8px 14px' }}>
           ⊡ Выйти
         </button>
       )}
@@ -341,142 +304,125 @@ export default function CrashGame() {
       {/* ── TAB: GAME ── */}
       {tab === 'game' && (
         <>
-          {/* History pill bar */}
-          <div style={{ display: 'flex', gap: 5, padding: '8px 12px', background: '#0e0e0e', borderBottom: '1px solid #181818', overflowX: 'auto', flexShrink: 0, alignItems: 'center' }}>
-            <span style={{ fontSize: 9, color: '#444', letterSpacing: 1, flexShrink: 0, marginRight: 2 }}>ИСТОРИЯ</span>
+          {/* History bar */}
+          <div style={{ display: 'flex', gap: 5, padding: '6px 10px', background: '#0e0e0e', borderBottom: '1px solid #181818', overflowX: 'auto', flexShrink: 0, alignItems: 'center' }}>
+            <span style={{ fontSize: 8, color: '#444', letterSpacing: 1, flexShrink: 0 }}>ИСТОРИЯ</span>
             {history.map((h) => (
               <button key={h.id} onClick={() => verifyRound(h)}
-                style={{ padding: '3px 10px', borderRadius: 20, border: `1px solid ${cpColor(h.crash_point)}33`, cursor: 'pointer', fontSize: 11, fontWeight: 800, background: `${cpColor(h.crash_point)}15`, color: cpColor(h.crash_point), flexShrink: 0, transition: 'all 0.1s' }}>
+                style={{ padding: '2px 9px', borderRadius: 20, border: `1px solid ${cpColor(h.crash_point)}44`, cursor: 'pointer', fontSize: 11, fontWeight: 800, background: `${cpColor(h.crash_point)}18`, color: cpColor(h.crash_point), flexShrink: 0 }}>
                 {Number(h.crash_point).toFixed(2)}x
               </button>
             ))}
           </div>
 
-          {/* Main area */}
+          {/* Main: graph + sidebar */}
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-
             {/* Graph */}
             <div style={{ flex: 1, position: 'relative', background: '#0d0d0d', overflow: 'hidden' }}>
-              {/* Round number */}
-              <div style={{ position: 'absolute', top: 10, left: 12, fontSize: 10, color: '#2a2a2a', zIndex: 2, letterSpacing: 0.5 }}>
+              <div style={{ position: 'absolute', top: 8, left: 10, fontSize: 9, color: '#2a2a2a', zIndex: 2, letterSpacing: 0.5 }}>
                 ROUND #{state.roundNumber}
               </div>
-
-              {/* Multiplier overlay */}
               <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 2, pointerEvents: 'none' }}>
                 {isBetting ? (
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: '#666', marginBottom: 8, letterSpacing: 2 }}>ПРИЁМ СТАВОК</div>
-                    <div style={{ fontSize: 80, fontWeight: 900, color: '#e4a832', lineHeight: 1, textShadow: '0 0 60px #e4a83260' }}>{bettingCountdown}</div>
-                    <div style={{ fontSize: 10, color: '#555', marginTop: 6, letterSpacing: 1 }}>секунд</div>
+                    <div style={{ fontSize: 9, color: '#666', marginBottom: 6, letterSpacing: 2 }}>ПРИЁМ СТАВОК</div>
+                    <div className="crash-mul" style={{ fontWeight: 900, color: '#e4a832', lineHeight: 1, textShadow: '0 0 40px #e4a83260' }}>{bettingCountdown}</div>
+                    <div style={{ fontSize: 9, color: '#555', marginTop: 4, letterSpacing: 1 }}>сек</div>
                   </div>
                 ) : (
                   <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 80, fontWeight: 900, lineHeight: 1, color: mulColor, textShadow: `0 0 60px ${mulColor}50`, transition: 'color 0.1s', fontVariantNumeric: 'tabular-nums' }}>
+                    <div className="crash-mul" style={{ fontWeight: 900, lineHeight: 1, color: mulColor, textShadow: `0 0 50px ${mulColor}50`, transition: 'color 0.1s', fontVariantNumeric: 'tabular-nums' }}>
                       {mulDisplay.toFixed(2)}x
                     </div>
-                    {isCrashed && (
-                      <div style={{ fontSize: 16, fontWeight: 800, color: '#ef4444', marginTop: 10, letterSpacing: 3, opacity: 0.9 }}>CRASHED</div>
-                    )}
+                    {isCrashed && <div style={{ fontSize: 13, fontWeight: 800, color: '#ef4444', marginTop: 8, letterSpacing: 3 }}>CRASHED</div>}
                   </div>
                 )}
               </div>
-
               <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
             </div>
 
-            {/* Players sidebar */}
-            <div className="crash-sidebar" style={{ width: 190, background: '#111', borderLeft: '1px solid #1e1e1e', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ padding: '10px 14px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1a1a1a' }}>
-                <span style={{ fontSize: 10, color: '#666', letterSpacing: 1, fontWeight: 700 }}>ИГРОКИ</span>
-                {state.bets.length > 0 && (
-                  <span style={{ fontSize: 10, background: '#1e1e1e', color: '#888', borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>{state.bets.length}</span>
-                )}
+            {/* Players sidebar — desktop only */}
+            <div className="crash-sidebar" style={{ width: 180, background: '#111', borderLeft: '1px solid #1e1e1e', overflowY: 'auto', flexShrink: 0, display: 'flex', flexDirection: 'column' }}>
+              <div style={{ padding: '8px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #1a1a1a' }}>
+                <span style={{ fontSize: 9, color: '#666', letterSpacing: 1, fontWeight: 700 }}>ИГРОКИ</span>
+                {state.bets.length > 0 && <span style={{ fontSize: 10, background: '#1e1e1e', color: '#777', borderRadius: 10, padding: '1px 7px', fontWeight: 700 }}>{state.bets.length}</span>}
               </div>
-              {state.bets.length === 0 ? (
-                <div style={{ fontSize: 11, color: '#333', textAlign: 'center', padding: '28px 0' }}>Нет ставок</div>
-              ) : (
-                state.bets.map((b, i) => {
-                  const won = b.cashedOut
-                  const lost = isCrashed && !b.cashedOut
+              {state.bets.length === 0
+                ? <div style={{ fontSize: 11, color: '#333', textAlign: 'center', padding: '24px 0' }}>Нет ставок</div>
+                : state.bets.map((b, i) => {
+                  const won = b.cashedOut, lost = isCrashed && !b.cashedOut
                   return (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 14px', borderBottom: '1px solid #161616', background: won ? '#22c55e08' : lost ? '#ef444408' : 'transparent' }}>
-                      <span style={{ fontSize: 12, color: won ? '#22c55e' : lost ? '#ef4444' : '#bbb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100, fontWeight: won || lost ? 700 : 400 }}>
-                        {b.username}
-                      </span>
-                      <span style={{ fontWeight: 800, fontSize: 11, color: won ? '#22c55e' : lost ? '#555' : '#888' }}>
-                        {won ? `${b.cashoutAt?.toFixed(2)}x` : `$${b.amount}`}
-                      </span>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 12px', borderBottom: '1px solid #161616', background: won ? '#22c55e08' : lost ? '#ef444408' : 'transparent' }}>
+                      <span style={{ fontSize: 12, color: won ? '#22c55e' : lost ? '#666' : '#bbb', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 100, fontWeight: won ? 700 : 400 }}>{b.username}</span>
+                      <span style={{ fontWeight: 800, fontSize: 11, color: won ? '#22c55e' : lost ? '#444' : '#888' }}>{won ? `${b.cashoutAt?.toFixed(2)}x` : `$${b.amount}`}</span>
                     </div>
                   )
                 })
-              )}
+              }
             </div>
           </div>
 
           {/* ── BET PANEL ── */}
-          <div style={{ background: '#111', borderTop: '1px solid #1e1e1e', padding: '12px 14px', flexShrink: 0 }}>
-            <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
-
+          <div style={{ background: '#111', borderTop: '1px solid #1e1e1e', padding: '10px 12px', flexShrink: 0 }}>
+            {/* Row 1: amount + auto cashout */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
               {/* Amount */}
-              <div style={{ flex: '1 1 150px', minWidth: 130 }}>
-                <div style={{ fontSize: 9, color: '#666', marginBottom: 5, letterSpacing: 1, fontWeight: 700 }}>СТАВКА ($)</div>
-                <div style={{ display: 'flex', gap: 4 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 8, color: '#666', marginBottom: 4, letterSpacing: 1, fontWeight: 700 }}>СТАВКА ($)</div>
+                <div style={{ display: 'flex', gap: 3 }}>
                   <input value={betAmount} onChange={e => setBetAmount(e.target.value)}
                     type="number" min="0.1" disabled={isRunning || hasBet}
-                    style={{ flex: 1, minWidth: 0, background: '#161616', border: '1px solid #2a2a2a', borderRadius: 8, padding: '9px 12px', color: '#fff', fontSize: 16, fontWeight: 900, outline: 'none', fontVariantNumeric: 'tabular-nums' }} />
+                    style={{ flex: 1, minWidth: 0, background: '#161616', border: '1px solid #252525', borderRadius: 7, padding: '8px 10px', color: '#fff', fontSize: 15, fontWeight: 900, outline: 'none', fontVariantNumeric: 'tabular-nums' }} />
                   {[10, 50, 100].map(v => (
                     <button key={v} onClick={() => setBetAmount(String(v))} disabled={isRunning || hasBet}
-                      style={{ padding: '9px 10px', borderRadius: 7, border: '1px solid #2a2a2a', background: '#161616', color: '#888', fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                      style={{ padding: '8px 7px', borderRadius: 6, border: '1px solid #252525', background: '#161616', color: '#777', fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
                       +{v}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Auto cashout */}
-              <div style={{ flex: '0 1 140px', minWidth: 120 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+              {/* Auto cashout compact */}
+              <div style={{ flexShrink: 0, width: 90 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
                   <input type="checkbox" id="ac" checked={useAutoCashout} onChange={e => setUseAutoCashout(e.target.checked)} disabled={isRunning || hasBet} style={{ cursor: 'pointer', accentColor: '#e4a832' }} />
-                  <label htmlFor="ac" style={{ fontSize: 9, color: useAutoCashout ? '#aaa' : '#555', letterSpacing: 1, cursor: 'pointer', fontWeight: 700 }}>АВТО КЕШАУТ</label>
+                  <label htmlFor="ac" style={{ fontSize: 8, color: useAutoCashout ? '#aaa' : '#555', letterSpacing: 0.5, cursor: 'pointer', fontWeight: 700 }}>АВТО</label>
                 </div>
                 <input value={autoCashout} onChange={e => setAutoCashout(e.target.value)}
-                  type="number" min="1.01" step="0.01" placeholder="2.00"
+                  type="number" min="1.01" step="0.01" placeholder="2.00x"
                   disabled={!useAutoCashout || isRunning || hasBet}
-                  style={{ width: '100%', background: '#161616', border: `1px solid ${useAutoCashout ? '#2a2a2a' : '#1e1e1e'}`, borderRadius: 8, padding: '9px 12px', color: useAutoCashout ? '#fff' : '#333', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-
-              {/* Action button */}
-              <div style={{ flex: '0 1 180px', minWidth: 150 }}>
-                {isRunning && hasBet && !cashedOut ? (
-                  <>
-                    <div style={{ fontSize: 9, color: '#22c55e', marginBottom: 4, letterSpacing: 0.5, fontWeight: 700 }}>
-                      СЕЙЧАС: ${(parseFloat(betAmount) * state.multiplier * 0.99).toFixed(2)}
-                    </div>
-                    <button onClick={sendCashout}
-                      style={{ width: '100%', padding: '12px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 900, background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', animation: 'pulse 0.7s infinite', letterSpacing: 0.5 }}>
-                      КЕШАУТ {state.multiplier.toFixed(2)}x
-                    </button>
-                  </>
-                ) : cashedOut ? (
-                  <div style={{ background: '#22c55e12', border: '1px solid #22c55e40', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 9, color: '#22c55e', marginBottom: 3, letterSpacing: 1 }}>ВЫИГРАЛ</div>
-                    <div style={{ color: '#22c55e', fontWeight: 900, fontSize: 20 }}>+${myProfit?.toFixed(2)}</div>
-                  </div>
-                ) : (
-                  <button onClick={sendBet} disabled={!isBetting || hasBet || !token}
-                    style={{
-                      width: '100%', padding: '12px', borderRadius: 10, border: 'none', marginTop: 14,
-                      fontSize: 15, fontWeight: 900, letterSpacing: 0.5, transition: 'all 0.15s',
-                      cursor: isBetting && !hasBet && token ? 'pointer' : 'default',
-                      background: isBetting && !hasBet && token ? 'linear-gradient(135deg,#22c55e,#16a34a)' : '#161616',
-                      color: isBetting && !hasBet && token ? '#fff' : '#333',
-                    }}>
-                    {!token ? 'ВОЙДИ ДЛЯ СТАВКИ' : hasBet ? '✓ ПРИНЯТО' : isBetting ? `BET $${betAmount}` : isRunning ? 'РАУНД ИДЁТ...' : 'ОЖИДАНИЕ...'}
-                  </button>
-                )}
+                  style={{ width: '100%', background: '#161616', border: `1px solid ${useAutoCashout ? '#252525' : '#1a1a1a'}`, borderRadius: 7, padding: '8px 8px', color: useAutoCashout ? '#fff' : '#2a2a2a', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
               </div>
             </div>
+
+            {/* Row 2: action button */}
+            {isRunning && hasBet && !cashedOut ? (
+              <div>
+                <div style={{ fontSize: 9, color: '#22c55e', marginBottom: 5, fontWeight: 700 }}>
+                  СЕЙЧАС: ${(parseFloat(betAmount) * state.multiplier * 0.99).toFixed(2)}
+                </div>
+                <button onClick={sendCashout}
+                  style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 900, background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', animation: 'pulse 0.7s infinite', letterSpacing: 0.5 }}>
+                  КЕШАУТ {state.multiplier.toFixed(2)}x
+                </button>
+              </div>
+            ) : cashedOut ? (
+              <div style={{ background: '#22c55e12', border: '1px solid #22c55e40', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                <div style={{ fontSize: 9, color: '#22c55e', marginBottom: 2, letterSpacing: 1 }}>ВЫИГРАЛ</div>
+                <div style={{ color: '#22c55e', fontWeight: 900, fontSize: 22 }}>+${myProfit?.toFixed(2)}</div>
+              </div>
+            ) : (
+              <button onClick={sendBet} disabled={!isBetting || hasBet || !token}
+                style={{
+                  width: '100%', padding: '13px', borderRadius: 10, border: 'none',
+                  fontSize: 16, fontWeight: 900, letterSpacing: 0.5, transition: 'all 0.15s',
+                  cursor: isBetting && !hasBet && token ? 'pointer' : 'default',
+                  background: isBetting && !hasBet && token ? 'linear-gradient(135deg,#22c55e,#16a34a)' : '#161616',
+                  color: isBetting && !hasBet && token ? '#fff' : '#333',
+                }}>
+                {!token ? 'ВОЙДИ ДЛЯ СТАВКИ' : hasBet ? '✓ ПРИНЯТО' : isBetting ? `BET $${betAmount}` : isRunning ? 'РАУНД ИДЁТ...' : 'ОЖИДАНИЕ...'}
+              </button>
+            )}
           </div>
         </>
       )}
@@ -484,55 +430,56 @@ export default function CrashGame() {
       {/* ── TAB: MY BETS ── */}
       {tab === 'my-bets' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-          <div style={{ fontSize: 13, color: '#666', marginBottom: 16 }}>История твоих ставок в текущей сессии</div>
           <div style={{ fontSize: 12, color: '#444', textAlign: 'center', paddingTop: 40 }}>
             {!token ? 'Войди чтобы увидеть свои ставки' : 'Ставок пока нет'}
           </div>
         </div>
       )}
 
-      {/* ── TAB: PROVABLY FAIR ── */}
+      {/* ── TAB: FAIR ── */}
       {tab === 'fair' && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: 20, maxWidth: 560 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
           <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 6 }}>🔒 Provably Fair</div>
-          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.7, marginBottom: 20 }}>
-            Каждый раунд генерируется с помощью HMAC-SHA256(serverSeed, clientSeed).<br />
-            Хэш серверного сида публикуется <b style={{ color: '#aaa' }}>до</b> раунда, сид раскрывается <b style={{ color: '#aaa' }}>после</b> — так ты можешь убедиться что результат не подменён.
+          <div style={{ fontSize: 12, color: '#666', lineHeight: 1.7, marginBottom: 16 }}>
+            Каждый раунд генерируется через HMAC-SHA256(serverSeed, clientSeed).<br />
+            Хэш публикуется <b style={{ color: '#aaa' }}>до</b> раунда, сид раскрывается <b style={{ color: '#aaa' }}>после</b>.
           </div>
-
           {verifyData && !verifyData.error && verifyModal ? (
             <div>
-              <div style={{ fontSize: 11, color: '#888', marginBottom: 12 }}>Round #{verifyModal.round_number}</div>
+              <div style={{ fontSize: 11, color: '#888', marginBottom: 10 }}>Round #{verifyModal.round_number}</div>
               {([['Crash Point', `${verifyData.crashPoint}x`], ['Server Seed', verifyData.serverSeed], ['Hash', verifyData.serverSeedHash], ['Client Seed', verifyData.clientSeed]] as [string, string][]).map(([k, v]) => (
-                <div key={k} style={{ marginBottom: 10 }}>
-                  <div style={{ fontSize: 9, color: '#555', marginBottom: 3, letterSpacing: 1, fontWeight: 700 }}>{k}</div>
-                  <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 8, padding: '8px 12px', fontSize: 11, color: '#999', wordBreak: 'break-all', fontFamily: 'monospace' }}>{v}</div>
+                <div key={k} style={{ marginBottom: 8 }}>
+                  <div style={{ fontSize: 8, color: '#555', marginBottom: 3, letterSpacing: 1, fontWeight: 700 }}>{k}</div>
+                  <div style={{ background: '#161616', border: '1px solid #222', borderRadius: 7, padding: '7px 10px', fontSize: 10, color: '#999', wordBreak: 'break-all', fontFamily: 'monospace' }}>{v}</div>
                 </div>
               ))}
-              <div style={{ padding: '12px 16px', borderRadius: 10, marginTop: 4, background: verifyData.verified ? '#22c55e12' : '#ef444412', border: `1px solid ${verifyData.verified ? '#22c55e40' : '#ef444440'}`, color: verifyData.verified ? '#22c55e' : '#ef4444', fontWeight: 800, textAlign: 'center', fontSize: 13 }}>
-                {verifyData.verified ? '✅ Результат честный' : '❌ Верификация не прошла'}
+              <div style={{ padding: '11px 14px', borderRadius: 9, marginTop: 4, background: verifyData.verified ? '#22c55e12' : '#ef444412', border: `1px solid ${verifyData.verified ? '#22c55e40' : '#ef444440'}`, color: verifyData.verified ? '#22c55e' : '#ef4444', fontWeight: 800, textAlign: 'center', fontSize: 13 }}>
+                {verifyData.verified ? '✅ Честный результат' : '❌ Верификация не прошла'}
               </div>
             </div>
           ) : (
-            <div style={{ fontSize: 12, color: '#444' }}>
-              Нажми на любой раунд в истории чтобы верифицировать его.
-            </div>
+            <div style={{ fontSize: 12, color: '#444', marginBottom: 16 }}>Нажми на раунд в истории для верификации.</div>
           )}
-
-          <div style={{ marginTop: 24, padding: 14, background: '#111', borderRadius: 10, border: '1px solid #1e1e1e' }}>
-            <div style={{ fontSize: 10, color: '#555', marginBottom: 8, letterSpacing: 1, fontWeight: 700 }}>ТЕКУЩИЙ РАУНД</div>
-            <div style={{ fontSize: 10, color: '#666', marginBottom: 3 }}>Server Seed Hash (до раунда):</div>
-            <div style={{ background: '#161616', borderRadius: 6, padding: '7px 10px', fontSize: 10, color: '#777', wordBreak: 'break-all', fontFamily: 'monospace' }}>{state.serverSeedHash || '—'}</div>
-            <div style={{ fontSize: 10, color: '#666', marginTop: 8, marginBottom: 3 }}>Client Seed:</div>
-            <div style={{ background: '#161616', borderRadius: 6, padding: '7px 10px', fontSize: 10, color: '#777', wordBreak: 'break-all', fontFamily: 'monospace' }}>{state.clientSeed || '—'}</div>
+          <div style={{ marginTop: 16, padding: 14, background: '#111', borderRadius: 10, border: '1px solid #1e1e1e' }}>
+            <div style={{ fontSize: 9, color: '#555', marginBottom: 8, letterSpacing: 1, fontWeight: 700 }}>ТЕКУЩИЙ РАУНД</div>
+            <div style={{ fontSize: 10, color: '#555', marginBottom: 3 }}>Server Seed Hash:</div>
+            <div style={{ background: '#161616', borderRadius: 6, padding: '6px 10px', fontSize: 10, color: '#666', wordBreak: 'break-all', fontFamily: 'monospace', marginBottom: 8 }}>{state.serverSeedHash || '—'}</div>
+            <div style={{ fontSize: 10, color: '#555', marginBottom: 3 }}>Client Seed:</div>
+            <div style={{ background: '#161616', borderRadius: 6, padding: '6px 10px', fontSize: 10, color: '#666', wordBreak: 'break-all', fontFamily: 'monospace' }}>{state.clientSeed || '—'}</div>
           </div>
         </div>
       )}
 
       <style>{`
-        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.02)} }
+        .crash-mul { font-size: 76px; }
+        .crash-fs-btn { display: flex; }
+        @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.015)} }
         @keyframes spin { to{transform:rotate(360deg)} }
-        @media(max-width:640px){ .crash-sidebar{ display:none !important; } }
+        @media(max-width:640px){
+          .crash-sidebar { display:none !important; }
+          .crash-fs-btn { display:none !important; }
+          .crash-mul { font-size: 52px !important; }
+        }
       `}</style>
     </div>
   )

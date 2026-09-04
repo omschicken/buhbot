@@ -277,6 +277,7 @@ export default function PlinkoGame() {
   const ballIdRef = useRef(0)
   const floatIdRef = useRef(0)
   const holdTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const touchActiveRef = useRef(false)
   const rowsRef = useRef<Rows>(rows)
   const riskRef = useRef<Risk>(risk)
   const betRef = useRef(bet)
@@ -480,11 +481,28 @@ export default function PlinkoGame() {
   }
 
   function onBetDown() {
+    if (holdTimerRef.current) return // already holding
     play()
     holdTimerRef.current = setInterval(play, 300)
   }
 
   function onBetUp() { stopHold() }
+
+  function onTouchBetDown(e: React.TouchEvent) {
+    e.preventDefault()
+    touchActiveRef.current = true
+    onBetDown()
+  }
+
+  function onTouchBetUp() {
+    touchActiveRef.current = false
+    onBetUp()
+  }
+
+  function onMouseBetDown() {
+    if (touchActiveRef.current) return // ignore synthetic mouse event after touch
+    onBetDown()
+  }
 
   useEffect(() => () => stopHold(), [])
 
@@ -529,9 +547,8 @@ export default function PlinkoGame() {
         <span style={{ fontSize: 12, color: '#e4a832', fontWeight: 700 }}>${balance.toFixed(2)}</span>
       </div>
 
-      {/* GAME TAB */}
-      {tab === 'game' && (
-        <div className="pk-body">
+      {/* GAME TAB — always mounted to keep canvas alive */}
+      <div className="pk-body" style={{ display: tab === 'game' ? undefined : 'none' }}>
           {/* LEFT PANEL */}
           <div className="pk-panel">
             {/* Top row: bet + BET button (side by side on mobile) */}
@@ -554,11 +571,12 @@ export default function PlinkoGame() {
               {/* BET button — hold to auto-bet */}
               <button
                 className="pk-deal"
-                onMouseDown={onBetDown}
+                onMouseDown={onMouseBetDown}
                 onMouseUp={onBetUp}
                 onMouseLeave={onBetUp}
-                onTouchStart={e => { e.preventDefault(); onBetDown() }}
-                onTouchEnd={onBetUp}
+                onTouchStart={onTouchBetDown}
+                onTouchEnd={onTouchBetUp}
+                onTouchCancel={onTouchBetUp}
               >
                 {activeBalls > 0 ? `● ${activeBalls}` : 'СТАВИТЬ'}
               </button>
@@ -654,7 +672,6 @@ export default function PlinkoGame() {
             )}
           </div>
         </div>
-      )}
 
       {/* HISTORY TAB */}
       {tab === 'history' && (

@@ -49,30 +49,80 @@ export default function CrashGame() {
     const ctx = canvas.getContext('2d')!
     const W = canvas.width, H = canvas.height
     ctx.clearRect(0, 0, W, H)
+
+    // Grid
+    ctx.strokeStyle = '#ffffff08'
+    ctx.lineWidth = 1
+    for (let i = 1; i <= 4; i++) {
+      const y = H * i / 4
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke()
+    }
+    for (let i = 1; i <= 6; i++) {
+      const x = W * i / 6
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke()
+    }
+
     const pts = pointsRef.current
     if (pts.length < 2) return
     const isCrashed = stateRef.current.status === 'crashed'
+    const lineColor = isCrashed ? '#ef4444' : '#00e701'
+
+    // Glow effect (draw line twice — wide blurred then sharp)
+    ctx.save()
+    ctx.shadowColor = lineColor
+    ctx.shadowBlur = 12
     ctx.beginPath()
     ctx.moveTo(pts[0].x, pts[0].y)
     for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
-    ctx.strokeStyle = isCrashed ? '#ef4444' : '#00e701'
+    ctx.strokeStyle = lineColor
     ctx.lineWidth = 3
     ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
     ctx.stroke()
-    const grad = ctx.createLinearGradient(0, 0, 0, H)
-    grad.addColorStop(0, isCrashed ? '#ef444430' : '#00e70130')
-    grad.addColorStop(1, 'transparent')
+    ctx.restore()
+
+    // Fill under curve
+    ctx.beginPath()
+    ctx.moveTo(pts[0].x, pts[0].y)
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y)
     ctx.lineTo(pts[pts.length - 1].x, H)
     ctx.lineTo(pts[0].x, H)
     ctx.closePath()
+    const grad = ctx.createLinearGradient(0, 0, 0, H)
+    grad.addColorStop(0, isCrashed ? '#ef444422' : '#00e70122')
+    grad.addColorStop(1, 'transparent')
     ctx.fillStyle = grad
     ctx.fill()
+
+    // Dot at tip
+    const tip = pts[pts.length - 1]
+    ctx.save()
+    ctx.shadowColor = lineColor
+    ctx.shadowBlur = 16
+    ctx.beginPath()
+    ctx.arc(tip.x, tip.y, 5, 0, Math.PI * 2)
+    ctx.fillStyle = lineColor
+    ctx.fill()
+    ctx.restore()
+  }, [])
+
+  // Scale canvas for device pixel ratio (sharp on retina)
+  const initCanvas = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const dpr = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = rect.width * dpr
+    canvas.height = rect.height * dpr
+    const ctx = canvas.getContext('2d')!
+    ctx.scale(dpr, dpr)
   }, [])
 
   const updateCanvas = useCallback((multiplier: number, startTime: number) => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const W = canvas.width, H = canvas.height
+    const dpr = window.devicePixelRatio || 1
+    const W = canvas.width / dpr, H = canvas.height / dpr
     const elapsed = (Date.now() - startTime) / 1000
     const x = Math.min(W - 10, 10 + elapsed * 50)
     const logM = Math.log(Math.max(1, multiplier))
@@ -91,6 +141,13 @@ export default function CrashGame() {
   }, [])
 
   useEffect(() => { loadHistory() }, [])
+
+  useEffect(() => {
+    initCanvas()
+    const onResize = () => { initCanvas(); pointsRef.current = []; drawGraph() }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [initCanvas, drawGraph])
 
   useEffect(() => {
     const url = token ? `${CRASH_WS_URL}?token=${token}` : CRASH_WS_URL
@@ -221,7 +278,7 @@ export default function CrashGame() {
             )}
           </div>
 
-          <canvas ref={canvasRef} width={900} height={380}
+          <canvas ref={canvasRef}
             style={{ width: '100%', height: '100%', display: 'block', minHeight: 280 }} />
         </div>
 

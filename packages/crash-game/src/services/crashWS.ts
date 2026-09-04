@@ -55,12 +55,13 @@ export function initCrashWS(server: any) {
             ws.send(JSON.stringify({ type: 'error', message: 'Not authenticated' })); return;
           }
           const amount = parseFloat(msg.amount);
+          const slotId = msg.slotId ?? null; // frontend slot identifier
           if (!amount || amount <= 0) {
-            ws.send(JSON.stringify({ type: 'error', message: 'Invalid amount' })); return;
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid amount', slotId })); return;
           }
 
-          // Debit from wallet via internal call
           const state = crashEngine.getState();
+          const existingBets = crashEngine.getUserBetIds(ws.userId).length;
           const debitRes = await fetch(`${WALLET_URL}/wallet/internal/debit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -69,25 +70,26 @@ export function initCrashWS(server: any) {
               amount,
               type: 'bet',
               game: 'crash',
-              referenceId: `crash_${state.roundId}_${ws.userId}`,
+              referenceId: `crash_${state.roundId}_${ws.userId}_${existingBets}`,
             }),
           });
 
           if (!debitRes.ok) {
             const err = await debitRes.json().catch(() => ({ error: 'Insufficient funds' }));
-            ws.send(JSON.stringify({ type: 'error', message: (err as any).error || 'Insufficient funds' })); return;
+            ws.send(JSON.stringify({ type: 'error', message: (err as any).error || 'Insufficient funds', slotId })); return;
           }
 
-          await crashEngine.placeBet(ws.userId, ws.username, amount, msg.autoCashout ?? undefined);
-          ws.send(JSON.stringify({ type: 'bet_accepted', amount }));
+          const betId = await crashEngine.placeBet(ws.userId, ws.username, amount, msg.autoCashout ?? undefined);
+          ws.send(JSON.stringify({ type: 'bet_accepted', betId, slotId, amount }));
         }
 
         if (msg.type === 'cashout') {
           if (!ws.userId) return;
+          const betId: string | undefined = msg.betId;
+          const slotId = msg.slotId ?? null;
           const state = crashEngine.getState();
-          const profit = await crashEngine.cashout(ws.userId);
+          const profit = await crashEngine.cashout(ws.userId, betId);
 
-          // Credit winnings
           await fetch(`${WALLET_URL}/wallet/internal/credit`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -96,11 +98,11 @@ export function initCrashWS(server: any) {
               amount: profit,
               type: 'win',
               game: 'crash',
-              referenceId: `crash_cashout_${state.roundId}_${ws.userId}`,
+              referenceId: `crash_cashout_${state.roundId}_${betId || ws.userId}`,
             }),
           }).catch(console.error);
 
-          ws.send(JSON.stringify({ type: 'cashout_confirmed', profit }));
+          ws.send(JSON.stringify({ type: 'cashout_confirmed', betId, slotId, profit }));
         }
 
         if (msg.type === 'ping') {

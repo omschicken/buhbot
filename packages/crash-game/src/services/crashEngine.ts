@@ -25,7 +25,8 @@ export class CrashEngine extends EventEmitter {
   private serverSeedHash: string = '';
   private clientSeed: string = '';
   private status: 'waiting' | 'betting' | 'running' | 'crashed' = 'waiting';
-  private bets: Map<string, Bet> = new Map();
+  private bets: Map<string, Bet> = new Map(); // betId → Bet
+  private userBetIds: Map<string, string[]> = new Map(); // userId → betId[]
   private startTime: number = 0;
   private crashPoint: number = 1;
   private currentMultiplier: number = 1;
@@ -77,6 +78,7 @@ export class CrashEngine extends EventEmitter {
   private async startNewRound() {
     this.status = 'waiting';
     this.bets.clear();
+    this.userBetIds.clear();
     this.currentMultiplier = 1.00;
 
     const serverSeed = generateServerSeed();
@@ -130,9 +132,9 @@ export class CrashEngine extends EventEmitter {
     this.currentMultiplier = Math.floor(Math.pow(Math.E, 0.06 * elapsed) * 100) / 100;
 
     // Auto cashouts
-    for (const [userId, bet] of this.bets) {
+    for (const [betId, bet] of this.bets) {
       if (!bet.cashedOut && bet.autoCashout && this.currentMultiplier >= bet.autoCashout) {
-        await this.processCashout(userId, bet.autoCashout).catch(console.error);
+        await this.processCashout(betId, bet.autoCashout).catch(console.error);
       }
     }
 
@@ -179,7 +181,8 @@ export class CrashEngine extends EventEmitter {
 
   async placeBet(userId: string, username: string, amount: number, autoCashout?: number): Promise<string> {
     if (this.status !== 'betting') throw new Error('Betting phase ended');
-    if (this.bets.has(userId)) throw new Error('Already placed a bet this round');
+    const userBets = this.userBetIds.get(userId) || [];
+    if (userBets.length >= 5) throw new Error('Maximum 5 bets per round');
     if (amount <= 0) throw new Error('Invalid amount');
 
     const betId = uuidv4();
@@ -191,18 +194,27 @@ export class CrashEngine extends EventEmitter {
       [betId, this.currentRoundId, userId, username, amount, autoCashout ?? null]
     );
 
-    this.bets.set(userId, bet);
-    this.emit('bet_placed', { userId, username, amount, autoCashout, totalBets: this.bets.size });
+    this.bets.set(betId, bet);
+    this.userBetIds.set(userId, [...userBets, betId]);
+    this.emit('bet_placed', { betId, userId, username, amount, autoCashout, totalBets: this.bets.size });
     return betId;
   }
 
-  async cashout(userId: string): Promise<number> {
+  async cashout(userId: string, betId?: string): Promise<number> {
     if (this.status !== 'running') throw new Error('Round not running');
-    return this.processCashout(userId, this.currentMultiplier);
+    if (betId) return this.processCashout(betId, this.currentMultiplier);
+    // cashout all active bets for user
+    const userBets = this.userBetIds.get(userId) || [];
+    let total = 0;
+    for (const id of userBets) {
+      const bet = this.bets.get(id);
+      if (bet && !bet.cashedOut) total += await this.processCashout(id, this.currentMultiplier);
+    }
+    return total;
   }
 
-  private async processCashout(userId: string, multiplier: number): Promise<number> {
-    const bet = this.bets.get(userId);
+  private async processCashout(betId: string, multiplier: number): Promise<number> {
+    const bet = this.bets.get(betId);
     if (!bet || bet.cashedOut) throw new Error('Cannot cashout');
 
     bet.cashedOut = true;
@@ -215,7 +227,7 @@ export class CrashEngine extends EventEmitter {
       [multiplier, profit, bet.id]
     );
 
-    this.emit('cashout', { userId, username: bet.username, amount: bet.amount, multiplier, profit });
+    this.emit('cashout', { betId, userId: bet.userId, username: bet.username, amount: bet.amount, multiplier, profit });
     return profit;
   }
 
@@ -239,11 +251,16 @@ export class CrashEngine extends EventEmitter {
   }
 
   hasBet(userId: string): boolean {
-    return this.bets.has(userId);
+    return (this.userBetIds.get(userId) || []).length > 0;
   }
 
   getBet(userId: string): Bet | undefined {
-    return this.bets.get(userId);
+    const ids = this.userBetIds.get(userId) || [];
+    return ids.length ? this.bets.get(ids[0]) : undefined;
+  }
+
+  getUserBetIds(userId: string): string[] {
+    return this.userBetIds.get(userId) || [];
   }
 }
 

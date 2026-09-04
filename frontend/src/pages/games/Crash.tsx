@@ -54,12 +54,12 @@ export default function CrashGame() {
   })
 
   const [state, setState] = useState<GameState>(stateRef.current)
-  const [betAmount, setBetAmount] = useState('10')
-  const [autoCashout, setAutoCashout] = useState('')
-  const [useAutoCashout, setUseAutoCashout] = useState(false)
-  const [hasBet, setHasBet] = useState(false)
-  const [cashedOut, setCashedOut] = useState(false)
-  const [myProfit, setMyProfit] = useState<number | null>(null)
+  interface BetSlot {
+    id: string; amount: string; autoCashout: string; useAutoCashout: boolean
+    hasBet: boolean; betId: string | null; cashedOut: boolean; profit: number | null
+  }
+  const newSlot = (): BetSlot => ({ id: Math.random().toString(36).slice(2), amount: '10', autoCashout: '', useAutoCashout: false, hasBet: false, betId: null, cashedOut: false, profit: null })
+  const [slots, setSlots] = useState<BetSlot[]>([newSlot()])
   const [bettingCountdown, setBettingCountdown] = useState(10)
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [verifyModal, setVerifyModal] = useState<HistoryEntry | null>(null)
@@ -180,12 +180,14 @@ export default function CrashGame() {
       }
       if (msg.type === 'round_start') {
         ptsRef.current = []; maxMRef.current = 2
-        setCrashed(false); setCrashedAt(1); setHasBet(false); setCashedOut(false); setMyProfit(null)
+        setCrashed(false); setCrashedAt(1)
+        setSlots(prev => prev.map(s => ({ ...s, hasBet: false, betId: null, cashedOut: false, profit: null })))
         const s = { ...stateRef.current, roundId: msg.roundId, roundNumber: msg.roundNumber, serverSeedHash: msg.serverSeedHash, clientSeed: msg.clientSeed, status: 'betting' as GameStatus, multiplier: 1, bettingEndsAt: msg.bettingEndsAt, bets: [] }
         stateRef.current = s; setState(s)
       }
       if (msg.type === 'round_running') {
         ptsRef.current = []; maxMRef.current = 2
+        setSlots(prev => prev.map(s => s.hasBet ? s : { ...s, hasBet: false, betId: null, cashedOut: false, profit: null }))
         setState(prev => { const s = { ...prev, status: 'running' as GameStatus, startTime: msg.startTime, multiplier: 1 }; stateRef.current = s; return s })
       }
       if (msg.type === 'tick') {
@@ -202,8 +204,14 @@ export default function CrashGame() {
       if (msg.type === 'cashout') {
         setState(prev => ({ ...prev, bets: prev.bets.map(b => b.username === msg.username ? { ...b, cashedOut: true, cashoutAt: msg.multiplier } : b) }))
       }
-      if (msg.type === 'bet_accepted') { setHasBet(true); addToast(`Ставка $${msg.amount} принята`, 'success') }
-      if (msg.type === 'cashout_confirmed') { setCashedOut(true); setMyProfit(msg.profit); addToast(`Вывод: $${Number(msg.profit).toFixed(2)}`, 'success') }
+      if (msg.type === 'bet_accepted') {
+        setSlots(prev => prev.map(s => s.id === msg.slotId ? { ...s, hasBet: true, betId: msg.betId } : s))
+        addToast(`Ставка $${msg.amount} принята`, 'success')
+      }
+      if (msg.type === 'cashout_confirmed') {
+        setSlots(prev => prev.map(s => s.betId === msg.betId ? { ...s, cashedOut: true, profit: msg.profit } : s))
+        addToast(`Вывод: $${Number(msg.profit).toFixed(2)}`, 'success')
+      }
       if (msg.type === 'error') { addToast(msg.message, 'error') }
     }
     return () => ws.close()
@@ -215,17 +223,23 @@ export default function CrashGame() {
     return () => clearInterval(iv)
   }, [state.status, state.bettingEndsAt])
 
-  const sendBet = () => {
+  const sendBet = (slot: BetSlot) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-    const amount = parseFloat(betAmount)
+    const amount = parseFloat(slot.amount)
     if (!amount || amount <= 0) { addToast('Введи сумму ставки', 'error'); return }
-    wsRef.current.send(JSON.stringify({ type: 'bet', amount, autoCashout: useAutoCashout && autoCashout ? parseFloat(autoCashout) : undefined }))
+    wsRef.current.send(JSON.stringify({ type: 'bet', slotId: slot.id, amount, autoCashout: slot.useAutoCashout && slot.autoCashout ? parseFloat(slot.autoCashout) : undefined }))
   }
 
-  const sendCashout = () => {
-    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
-    wsRef.current.send(JSON.stringify({ type: 'cashout' }))
+  const sendCashout = (slot: BetSlot) => {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN || !slot.betId) return
+    wsRef.current.send(JSON.stringify({ type: 'cashout', betId: slot.betId, slotId: slot.id }))
   }
+
+  const updateSlot = (id: string, patch: Partial<BetSlot>) =>
+    setSlots(prev => prev.map(s => s.id === id ? { ...s, ...patch } : s))
+
+  const addSlot = () => { if (slots.length < 5) setSlots(prev => [...prev, newSlot()]) }
+  const removeSlot = (id: string) => { if (slots.length > 1) setSlots(prev => prev.filter(s => s.id !== id)) }
 
   const verifyRound = async (r: HistoryEntry) => {
     setVerifyModal(r); setVerifyData(null); setTab('fair')
@@ -366,66 +380,81 @@ export default function CrashGame() {
           </div>
 
           {/* ── BET PANEL ── */}
-          <div style={{ background: '#111', borderTop: '1px solid #1e1e1e', padding: '10px 12px', flexShrink: 0 }}>
-            {/* Row 1: amount + auto cashout */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
-              {/* Amount */}
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 8, color: '#666', marginBottom: 4, letterSpacing: 1, fontWeight: 700 }}>СТАВКА ($)</div>
-                <div style={{ display: 'flex', gap: 3 }}>
-                  <input value={betAmount} onChange={e => setBetAmount(e.target.value)}
-                    type="number" min="0.1" disabled={isRunning || hasBet}
-                    style={{ flex: 1, minWidth: 0, background: '#161616', border: '1px solid #252525', borderRadius: 7, padding: '8px 10px', color: '#fff', fontSize: 15, fontWeight: 900, outline: 'none', fontVariantNumeric: 'tabular-nums' }} />
-                  {[10, 50, 100].map(v => (
-                    <button key={v} onClick={() => setBetAmount(String(v))} disabled={isRunning || hasBet}
-                      style={{ padding: '8px 7px', borderRadius: 6, border: '1px solid #252525', background: '#161616', color: '#777', fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
-                      +{v}
-                    </button>
-                  ))}
-                </div>
-              </div>
+          <div style={{ background: '#111', borderTop: '1px solid #1e1e1e', padding: '8px 10px', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8, overflowX: 'auto', paddingBottom: 2 }}>
+              {slots.map((slot) => {
+                const locked = isRunning || slot.hasBet
+                const canBet = isBetting && !slot.hasBet && !!token
+                return (
+                  <div key={slot.id} style={{ flex: '0 0 auto', minWidth: 200, maxWidth: 260, background: '#161616', borderRadius: 10, border: '1px solid #222', padding: '8px 10px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {/* Slot header */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 8, color: '#555', letterSpacing: 1, fontWeight: 700 }}>СТАВКА ($)</span>
+                      {slots.length > 1 && !slot.hasBet && (
+                        <button onClick={() => removeSlot(slot.id)} style={{ background: 'none', border: 'none', color: '#444', fontSize: 14, cursor: 'pointer', lineHeight: 1, padding: '0 2px' }}>×</button>
+                      )}
+                    </div>
 
-              {/* Auto cashout compact */}
-              <div style={{ flexShrink: 0, width: 90 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-                  <input type="checkbox" id="ac" checked={useAutoCashout} onChange={e => setUseAutoCashout(e.target.checked)} disabled={isRunning || hasBet} style={{ cursor: 'pointer', accentColor: '#e4a832' }} />
-                  <label htmlFor="ac" style={{ fontSize: 8, color: useAutoCashout ? '#aaa' : '#555', letterSpacing: 0.5, cursor: 'pointer', fontWeight: 700 }}>АВТО</label>
-                </div>
-                <input value={autoCashout} onChange={e => setAutoCashout(e.target.value)}
-                  type="number" min="1.01" step="0.01" placeholder="2.00x"
-                  disabled={!useAutoCashout || isRunning || hasBet}
-                  style={{ width: '100%', background: '#161616', border: `1px solid ${useAutoCashout ? '#252525' : '#1a1a1a'}`, borderRadius: 7, padding: '8px 8px', color: useAutoCashout ? '#fff' : '#2a2a2a', fontSize: 12, outline: 'none', boxSizing: 'border-box' }} />
-              </div>
-            </div>
+                    {/* Amount row */}
+                    <div style={{ display: 'flex', gap: 3 }}>
+                      <input value={slot.amount} onChange={e => updateSlot(slot.id, { amount: e.target.value })}
+                        type="number" min="0.1" disabled={locked}
+                        style={{ flex: 1, minWidth: 0, background: '#1a1a1a', border: '1px solid #252525', borderRadius: 6, padding: '7px 8px', color: '#fff', fontSize: 14, fontWeight: 900, outline: 'none', fontVariantNumeric: 'tabular-nums' }} />
+                      {[10, 50, 100].map(v => (
+                        <button key={v} onClick={() => updateSlot(slot.id, { amount: String(v) })} disabled={locked}
+                          style={{ padding: '7px 6px', borderRadius: 5, border: '1px solid #252525', background: '#1e1e1e', color: '#666', fontSize: 10, fontWeight: 700, cursor: 'pointer', flexShrink: 0 }}>
+                          {v}
+                        </button>
+                      ))}
+                    </div>
 
-            {/* Row 2: action button */}
-            {isRunning && hasBet && !cashedOut ? (
-              <div>
-                <div style={{ fontSize: 9, color: '#22c55e', marginBottom: 5, fontWeight: 700 }}>
-                  СЕЙЧАС: ${(parseFloat(betAmount) * state.multiplier * 0.99).toFixed(2)}
-                </div>
-                <button onClick={sendCashout}
-                  style={{ width: '100%', padding: '13px', borderRadius: 10, border: 'none', cursor: 'pointer', fontSize: 16, fontWeight: 900, background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', animation: 'pulse 0.7s infinite', letterSpacing: 0.5 }}>
-                  КЕШАУТ {state.multiplier.toFixed(2)}x
+                    {/* Auto cashout */}
+                    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                      <input type="checkbox" id={`ac-${slot.id}`} checked={slot.useAutoCashout} onChange={e => updateSlot(slot.id, { useAutoCashout: e.target.checked })} disabled={locked} style={{ cursor: 'pointer', accentColor: '#e4a832' }} />
+                      <label htmlFor={`ac-${slot.id}`} style={{ fontSize: 8, color: slot.useAutoCashout ? '#aaa' : '#444', cursor: 'pointer', fontWeight: 700, letterSpacing: 0.5 }}>АВТО</label>
+                      <input value={slot.autoCashout} onChange={e => updateSlot(slot.id, { autoCashout: e.target.value })}
+                        type="number" min="1.01" step="0.01" placeholder="2.00x"
+                        disabled={!slot.useAutoCashout || locked}
+                        style={{ flex: 1, minWidth: 0, background: '#1a1a1a', border: `1px solid ${slot.useAutoCashout ? '#252525' : '#1a1a1a'}`, borderRadius: 6, padding: '5px 7px', color: slot.useAutoCashout ? '#fff' : '#2a2a2a', fontSize: 11, outline: 'none' }} />
+                    </div>
+
+                    {/* Action button */}
+                    {isRunning && slot.hasBet && !slot.cashedOut ? (
+                      <div>
+                        <div style={{ fontSize: 8, color: '#22c55e', marginBottom: 4, fontWeight: 700 }}>
+                          СЕЙЧАС: ${(parseFloat(slot.amount) * state.multiplier * 0.99).toFixed(2)}
+                        </div>
+                        <button onClick={() => sendCashout(slot)}
+                          style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: 13, fontWeight: 900, background: 'linear-gradient(135deg,#ef4444,#dc2626)', color: '#fff', animation: 'pulse 0.7s infinite' }}>
+                          КЕШАУТ {state.multiplier.toFixed(2)}x
+                        </button>
+                      </div>
+                    ) : slot.cashedOut ? (
+                      <div style={{ background: '#22c55e12', border: '1px solid #22c55e40', borderRadius: 8, padding: '9px', textAlign: 'center' }}>
+                        <div style={{ fontSize: 8, color: '#22c55e', letterSpacing: 1 }}>ВЫИГРАЛ</div>
+                        <div style={{ color: '#22c55e', fontWeight: 900, fontSize: 16 }}>+${slot.profit?.toFixed(2)}</div>
+                      </div>
+                    ) : (
+                      <button onClick={() => sendBet(slot)} disabled={!canBet}
+                        style={{ width: '100%', padding: '10px', borderRadius: 8, border: 'none', fontSize: 13, fontWeight: 900, transition: 'all 0.15s',
+                          cursor: canBet ? 'pointer' : 'default',
+                          background: canBet ? 'linear-gradient(135deg,#22c55e,#16a34a)' : '#1a1a1a',
+                          color: canBet ? '#fff' : '#333' }}>
+                        {!token ? 'ВОЙДИ' : slot.hasBet ? '✓ ПРИНЯТО' : isBetting ? `BET $${slot.amount}` : isRunning ? 'РАУНД ИДЁТ' : '...'}
+                      </button>
+                    )}
+                  </div>
+                )
+              })}
+
+              {/* Add slot button */}
+              {slots.length < 5 && (
+                <button onClick={addSlot}
+                  style={{ flex: '0 0 auto', width: 44, borderRadius: 10, border: '1px dashed #2a2a2a', background: 'none', color: '#444', fontSize: 22, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  +
                 </button>
-              </div>
-            ) : cashedOut ? (
-              <div style={{ background: '#22c55e12', border: '1px solid #22c55e40', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
-                <div style={{ fontSize: 9, color: '#22c55e', marginBottom: 2, letterSpacing: 1 }}>ВЫИГРАЛ</div>
-                <div style={{ color: '#22c55e', fontWeight: 900, fontSize: 22 }}>+${myProfit?.toFixed(2)}</div>
-              </div>
-            ) : (
-              <button onClick={sendBet} disabled={!isBetting || hasBet || !token}
-                style={{
-                  width: '100%', padding: '13px', borderRadius: 10, border: 'none',
-                  fontSize: 16, fontWeight: 900, letterSpacing: 0.5, transition: 'all 0.15s',
-                  cursor: isBetting && !hasBet && token ? 'pointer' : 'default',
-                  background: isBetting && !hasBet && token ? 'linear-gradient(135deg,#22c55e,#16a34a)' : '#161616',
-                  color: isBetting && !hasBet && token ? '#fff' : '#333',
-                }}>
-                {!token ? 'ВОЙДИ ДЛЯ СТАВКИ' : hasBet ? '✓ ПРИНЯТО' : isBetting ? `BET $${betAmount}` : isRunning ? 'РАУНД ИДЁТ...' : 'ОЖИДАНИЕ...'}
-              </button>
-            )}
+              )}
+            </div>
           </div>
         </>
       )}

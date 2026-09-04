@@ -259,6 +259,7 @@ export default function PlinkoGame() {
   const { addToast } = useUIStore()
 
   const [tab, setTab] = useState<Tab>('game')
+  const [showHelp, setShowHelp] = useState(false)
   const [bet, setBet] = useState('1.00')
   const [risk, setRisk] = useState<Risk>('medium')
   const [rows, setRows] = useState<Rows>(16)
@@ -531,6 +532,25 @@ export default function PlinkoGame() {
       <style>{CSS}</style>
       <ToastContainer />
 
+      {/* HELP MODAL */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 14, padding: 24, maxWidth: 360, width: '90%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowHelp(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#666', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#e4a832', marginBottom: 12 }}>🔴 Plinko</div>
+            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 4, marginTop: 12 }}>КАК ИГРАТЬ</div>
+            <div style={{ fontSize: 13, color: '#bbb', lineHeight: 1.6 }}>
+              • Выбери сумму ставки, риск и количество строк<br />
+              • Нажми СТАВИТЬ — шар падает сквозь штырьки<br />
+              • Каждый штырёк: шар летит влево или вправо<br />
+              • Попав в ячейку снизу — получаешь ставку × множитель<br />
+              • Удерживай кнопку или пробел для авто-ставки каждые 300мс<br />
+              • Риск HIGH = редкие но огромные выигрыши
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="pk-hdr">
         <button className="pk-btn" onClick={() => navigate('/')}>←</button>
@@ -544,6 +564,7 @@ export default function PlinkoGame() {
           ))}
         </div>
         <div style={{ flex: 1 }} />
+        <button className="pk-btn" onClick={() => setShowHelp(true)} style={{ fontSize: 14 }}>?</button>
         <span style={{ fontSize: 12, color: '#e4a832', fontWeight: 700 }}>${balance.toFixed(2)}</span>
       </div>
 

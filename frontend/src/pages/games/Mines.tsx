@@ -292,6 +292,7 @@ export default function MinesGame() {
   const { token } = useAuthStore()
   const { addToast } = useUIStore()
 
+  const [showHelp, setShowHelp] = useState(false)
   const [balance, setBalance] = useState(0)
   const [betAmount, setBetAmount] = useState('1.00')
   const [minesCount, setMinesCount] = useState(3)
@@ -450,9 +451,29 @@ export default function MinesGame() {
       <style>{CSS}</style>
       <ToastContainer />
 
+      {/* HELP MODAL */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 14, padding: 24, maxWidth: 360, width: '90%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowHelp(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#666', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#e4a832', marginBottom: 12 }}>💎 Mines</div>
+            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 4, marginTop: 12 }}>КАК ИГРАТЬ</div>
+            <div style={{ fontSize: 13, color: '#bbb', lineHeight: 1.6 }}>
+              • Выбери ставку и количество мин (1-24)<br />
+              • Открывай клетки — каждый 💎 увеличивает множитель<br />
+              • Нажал на 💣 — ставка сгорает<br />
+              • Cash Out в любой момент чтобы забрать выигрыш<br />
+              • Чем больше мин — тем выше потенциальный множитель<br />
+              • При загрузке страницы незавершённый раунд восстанавливается
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="mines-header">
         <button className="mines-back-btn" onClick={() => navigate('/')}>← Back</button>
         <div className="mines-title">MINES</div>
+        <button className="mines-back-btn" onClick={() => setShowHelp(true)} style={{ fontSize: 14, padding: '8px 12px' }}>?</button>
         <div className="mines-balance">${balance.toFixed(2)}</div>
       </div>
 

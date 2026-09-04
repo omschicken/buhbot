@@ -28,6 +28,7 @@ export default function CrashGame() {
   const navigate = useNavigate()
   const [fullscreen, setFullscreen] = useState(false)
   const [tab, setTab] = useState<Tab>('game')
+  const [showHelp, setShowHelp] = useState(false)
 
   const toggleFullscreen = () => {
     if (!document.fullscreenElement) {
@@ -325,6 +326,25 @@ export default function CrashGame() {
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100svh', background: '#0a0a0a', color: '#fff', overflow: 'hidden' }}>
       <ToastContainer />
 
+      {/* ── HELP MODAL ── */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 14, padding: 24, maxWidth: 360, width: '90%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowHelp(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#666', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#e4a832', marginBottom: 12 }}>🚀 Crash</div>
+            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 4, marginTop: 12 }}>КАК ИГРАТЬ</div>
+            <div style={{ fontSize: 13, color: '#bbb', lineHeight: 1.6 }}>
+              • Ставь до старта раунда — выбери сумму и нажми BET<br />
+              • Множитель начинает расти с 1.00×<br />
+              • Успей нажать CASH OUT до того как ракета улетит<br />
+              • Если не успел — ставка сгорает<br />
+              • Авто-кэшаут: установи целевой множитель, выход произойдёт автоматически<br />
+              • Каждый раунд провабли фэйр верифицируем
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── HEADER ── */}
       <div className="crash-header" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', height: 48, background: '#111', borderBottom: '1px solid #1e1e1e', flexShrink: 0, minWidth: 0 }}>
         <button onClick={() => navigate('/')}
@@ -360,6 +380,10 @@ export default function CrashGame() {
           </button>
         )}
 
+        <button onClick={() => setShowHelp(true)} title="Правила"
+          style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 7, color: '#888', fontSize: 14, cursor: 'pointer', padding: '5px 8px', lineHeight: 1, flexShrink: 0 }}>
+          ?
+        </button>
         <button onClick={toggleFullscreen} title={fullscreen ? 'Выйти' : 'Полный экран'}
           className="crash-fs-btn"
           style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 7, color: '#888', fontSize: 14, cursor: 'pointer', padding: '5px 8px', lineHeight: 1, flexShrink: 0 }}>

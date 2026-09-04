@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useUIStore } from '../../store/useUIStore'
+import { getBalance } from '../../api/wallet'
 import ToastContainer from '../../components/ui/Toast'
 
 const CRASH_WS_URL = import.meta.env.VITE_CRASH_WS_URL || 'wss://buhbot-production-ddcd.up.railway.app/crash'
@@ -22,7 +23,7 @@ const cpColor = (x: number) => x < 2 ? '#ef4444' : x < 5 ? '#f59e0b' : '#22c55e'
 interface Pt { x: number; y: number; m: number }
 
 export default function CrashGame() {
-  const { token, user, balance } = useAuthStore()
+  const { token, user, balance, setBalance } = useAuthStore()
   const { addToast } = useUIStore()
   const navigate = useNavigate()
   const [fullscreen, setFullscreen] = useState(false)
@@ -155,12 +156,28 @@ export default function CrashGame() {
 
   useEffect(() => { loadHistory() }, [])
 
+  // Обновляем баланс при входе на страницу и после кешаута
+  useEffect(() => {
+    if (!token) return
+    getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
+  }, [token])
+
   useEffect(() => {
     initCanvas()
     const onResize = () => { initCanvas(); ptsRef.current = []; maxMRef.current = 2; drawGraph() }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [initCanvas, drawGraph])
+
+  // Если зашли в середине раунда — восстанавливаем историю тиков по startTime
+  useEffect(() => {
+    if (state.status !== 'running' || !state.startTime || ptsRef.current.length > 0) return
+    const elapsed = (Date.now() - state.startTime) / 1000
+    for (let t = 0.2; t <= elapsed; t += 0.2) {
+      const m = Math.pow(Math.E, 0.06 * t)
+      updateCanvas(m, state.startTime)
+    }
+  }, [state.status, state.startTime, updateCanvas])
 
   useEffect(() => {
     const url = token ? `${CRASH_WS_URL}?token=${token}` : CRASH_WS_URL
@@ -210,6 +227,7 @@ export default function CrashGame() {
       if (msg.type === 'cashout_confirmed') {
         setSlots(prev => prev.map(s => s.betId === msg.betId ? { ...s, cashedOut: true, profit: msg.profit } : s))
         addToast(`Вывод: $${Number(msg.profit).toFixed(2)}`, 'success')
+        getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
       }
       if (msg.type === 'error') { addToast(msg.message, 'error') }
     }

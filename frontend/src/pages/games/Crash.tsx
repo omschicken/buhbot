@@ -137,11 +137,14 @@ export default function CrashGame() {
     const container = graphContainerRef.current
     if (!canvas || !container) return
     const dpr = window.devicePixelRatio || 1
-    const w = container.clientWidth
-    const h = container.clientHeight
+    const rect = container.getBoundingClientRect()
+    const w = Math.floor(rect.width)
+    const h = Math.floor(rect.height)
     if (!w || !h) return
     canvas.width = w * dpr
     canvas.height = h * dpr
+    canvas.style.width = w + 'px'
+    canvas.style.height = h + 'px'
     canvas.getContext('2d')!.scale(dpr, dpr)
   }, [])
 
@@ -173,13 +176,11 @@ export default function CrashGame() {
   useEffect(() => {
     const container = graphContainerRef.current
     if (!container) return
-    initCanvas()
-    const ro = new ResizeObserver(() => {
-      initCanvas()
-      drawGraph()
-    })
+    // rAF гарантирует что layout завершён до чтения размеров
+    const raf = requestAnimationFrame(() => { initCanvas(); drawGraph() })
+    const ro = new ResizeObserver(() => { initCanvas(); drawGraph() })
     ro.observe(container)
-    return () => ro.disconnect()
+    return () => { cancelAnimationFrame(raf); ro.disconnect() }
   }, [initCanvas, drawGraph])
 
   // Если зашли в середине раунда — восстанавливаем историю тиков по startTime
@@ -387,7 +388,7 @@ export default function CrashGame() {
                   </div>
                 )}
               </div>
-              <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
+              <canvas ref={canvasRef} style={{ position: 'absolute', top: 0, left: 0, display: 'block' }} />
             </div>
 
             {/* Players sidebar — desktop only */}

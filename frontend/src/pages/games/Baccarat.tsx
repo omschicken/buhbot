@@ -67,19 +67,25 @@ const CSS = `
   .bac-zone-score { font-size:32px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
   .bac-cards { display:flex; gap:8px; align-items:flex-start; }
 
-  .bac-card { width:56px; height:80px; border-radius:8px; flex-shrink:0; position:relative; overflow:hidden; }
   .bac-card-back { width:56px; height:80px; border-radius:8px; flex-shrink:0;
     background:linear-gradient(135deg,#1e3a8a,#1d4ed8); border:1px solid #2563eb;
-    box-shadow:0 4px 12px rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; }
+    box-shadow:0 4px 16px rgba(0,0,0,.8); display:flex; align-items:center; justify-content:center; }
   .bac-card-front { width:56px; height:80px; border-radius:8px; flex-shrink:0;
     background:#fff; border:1px solid #e2e8f0;
-    box-shadow:0 4px 12px rgba(0,0,0,.7); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
-  .bac-card-slot { width:56px; height:80px; border-radius:8px; flex-shrink:0; background:transparent; }
+    box-shadow:0 4px 16px rgba(0,0,0,.8); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .bac-card-slot { width:56px; height:80px; border-radius:8px; flex-shrink:0; border:1px dashed #1e1e1e; }
 
-  @keyframes bac-out { 0%{transform:scaleX(1)} 100%{transform:scaleX(0)} }
-  @keyframes bac-in  { 0%{transform:scaleX(0)} 100%{transform:scaleX(1)} }
-  .bac-anim-out { animation:bac-out .18s ease forwards; }
-  .bac-anim-in  { animation:bac-in  .18s ease forwards; }
+  @keyframes bac-deal {
+    0%   { transform: translateY(-120px) translateX(20px) rotate(-8deg) scale(.7); opacity:0; }
+    60%  { transform: translateY(6px) translateX(-1px) rotate(1deg) scale(1.04); opacity:1; }
+    80%  { transform: translateY(-3px) rotate(-.5deg) scale(.99); }
+    100% { transform: translateY(0) rotate(0deg) scale(1); opacity:1; }
+  }
+  @keyframes bac-flip-out { 0%{transform:scaleX(1)} 100%{transform:scaleX(0)} }
+  @keyframes bac-flip-in  { 0%{transform:scaleX(0)} 100%{transform:scaleX(1)} }
+  .bac-anim-deal    { animation:bac-deal .42s cubic-bezier(.22,.68,0,1.2) forwards; }
+  .bac-anim-out { animation:bac-flip-out .16s ease-in forwards; }
+  .bac-anim-in  { animation:bac-flip-in  .16s ease-out forwards; }
 
   .bac-mid { height:50px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
 
@@ -100,17 +106,28 @@ const CSS = `
   .bac-fair-field { background:#161616; border:1px solid #252525; border-radius:7px; padding:8px 10px; font-size:10px; color:#aaa; word-break:break-all; margin-top:3px; }
 `
 
+type CardPhase = 'idle' | 'deal' | 'flip-out' | 'front'
+
 function Card({ value, pos, visible }: { value: number; pos: number; visible: boolean }) {
-  const [phase, setPhase] = useState<'back' | 'out' | 'front'>('back')
+  const [phase, setPhase] = useState<CardPhase>('idle')
+  const prevVisible = useRef(false)
   const suit = suitFor(value, pos)
   const red = isRed(suit)
 
   useEffect(() => {
-    if (!visible) { setPhase('back'); return }
-    setPhase('out')
-    const t = setTimeout(() => setPhase('front'), 190)
-    return () => clearTimeout(t)
+    if (visible && !prevVisible.current) {
+      // Card just appeared: slide in face-down
+      setPhase('deal')
+      // After slide-in finishes (~420ms), flip to front
+      const t1 = setTimeout(() => setPhase('flip-out'), 440)
+      const t2 = setTimeout(() => setPhase('front'), 440 + 170)
+      prevVisible.current = true
+      return () => { clearTimeout(t1); clearTimeout(t2) }
+    }
+    if (!visible) { setPhase('idle'); prevVisible.current = false }
   }, [visible])
+
+  if (phase === 'idle') return <div className="bac-card-slot" />
 
   if (phase === 'front') return (
     <div className="bac-card-front bac-anim-in">
@@ -118,9 +135,11 @@ function Card({ value, pos, visible }: { value: number; pos: number; visible: bo
       <div style={{ fontSize: 20, color: red ? '#dc2626' : '#111', lineHeight: 1 }}>{suit}</div>
     </div>
   )
+
+  // deal or flip-out: show back face
   return (
-    <div className={`bac-card-back${phase === 'out' ? ' bac-anim-out' : ''}`}>
-      <div style={{ fontSize: 24, opacity: 0.18, color: '#fff' }}>♦</div>
+    <div className={`bac-card-back${phase === 'deal' ? ' bac-anim-deal' : phase === 'flip-out' ? ' bac-anim-out' : ''}`}>
+      <div style={{ fontSize: 24, opacity: 0.22, color: '#fff' }}>♦</div>
     </div>
   )
 }
@@ -180,11 +199,11 @@ export default function BaccaratGame() {
       if (d.bankerCards.length > 2) order.push({ s: 'banker', i: 2 })
       const a = audio()
       for (const { s, i } of order) {
-        await new Promise(res => setTimeout(res, 370))
+        await new Promise(res => setTimeout(res, 480))
         if (!muted && a) a.deal()
         setVis(p => ({ ...p, [s]: p[s].includes(i) ? p[s] : [...p[s], i] }))
       }
-      await new Promise(res => setTimeout(res, 400))
+      await new Promise(res => setTimeout(res, 750))
       setSesHist(p => [{ w: d.winner }, ...p].slice(0, 30))
       if (!muted && a) { if (d.profit > 0) a.win(); else if (d.profit < 0) a.lose() }
       if (d.profit > 0) addToast(`+$${d.profit.toFixed(2)} 🎉`, 'success')
@@ -259,9 +278,7 @@ export default function BaccaratGame() {
               <div className="bac-cards">
                 {result
                   ? result.bankerCards.map((v, i) => <Card key={i} value={v} pos={i} visible={vis.banker.includes(i)} />)
-                  : dealing
-                    ? [0, 1].map(i => <Card key={i} value={0} pos={i} visible={false} />)
-                    : [0, 1].map(i => <div key={i} className="bac-card-slot" style={{ width: 56, height: 80, borderRadius: 8, border: '1px dashed #1e1e1e' }} />)
+                  : [0, 1, 2].map(i => <div key={i} className="bac-card-slot" />)
                 }
               </div>
             </div>
@@ -292,9 +309,7 @@ export default function BaccaratGame() {
               <div className="bac-cards">
                 {result
                   ? result.playerCards.map((v, i) => <Card key={i} value={v} pos={i + 3} visible={vis.player.includes(i)} />)
-                  : dealing
-                    ? [0, 1].map(i => <Card key={i} value={0} pos={i + 3} visible={false} />)
-                    : [0, 1].map(i => <div key={i} style={{ width: 56, height: 80, borderRadius: 8, border: '1px dashed #1e1e1e' }} />)
+                  : [0, 1, 2].map(i => <div key={i} className="bac-card-slot" />)
                 }
               </div>
             </div>

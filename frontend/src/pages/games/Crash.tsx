@@ -149,11 +149,29 @@ export default function CrashGame() {
     const W = canvas.width / dpr
     const H = canvas.height / dpr
     const elapsed = (Date.now() - startTime) / 1000
-    const x = Math.min(W - 12, 12 + elapsed * 55)
-    const logM = Math.log(Math.max(1, multiplier))
-    const maxLog = Math.log(10)
-    const y = H - 12 - ((logM / maxLog) * (H - 32))
-    pointsRef.current.push({ x, y: Math.max(12, y) })
+
+    // x: grows with time, starts at left edge
+    const x = Math.min(W - 16, 16 + (elapsed / 60) * (W - 32))
+
+    // y: dynamic log scale — current multiplier fills ~75% of graph height
+    const logM = Math.log(Math.max(1.001, multiplier))
+    const maxLog = Math.max(logM * 1.35, Math.log(2)) // always show at least 2x range
+    const y = H - 8 - ((logM / maxLog) * (H - 24))
+
+    // Rescale all existing points when scale changes
+    const pts = pointsRef.current
+    if (pts.length > 0) {
+      const prevMaxLog = pts[pts.length - 1]._maxLog ?? maxLog
+      if (Math.abs(prevMaxLog - maxLog) > 0.01) {
+        for (const p of pts) {
+          const origLogM = p._logM ?? 0
+          p.y = H - 8 - ((origLogM / maxLog) * (H - 24))
+        }
+      }
+    }
+
+    const pt: any = { x, y: Math.max(8, y), _logM: logM, _maxLog: maxLog }
+    pointsRef.current.push(pt)
     drawGraph()
   }, [drawGraph])
 

@@ -19,7 +19,7 @@ interface GameState {
 const cpColor = (x: number) => x < 2 ? '#ef4444' : x < 5 ? '#f59e0b' : '#22c55e'
 
 // Store raw data per point for rescaling
-interface Pt { x: number; y: number; logM: number }
+interface Pt { x: number; y: number; m: number }
 
 export default function CrashGame() {
   const { token, user, balance } = useAuthStore()
@@ -47,7 +47,7 @@ export default function CrashGame() {
   const wsRef = useRef<WebSocket | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const ptsRef = useRef<Pt[]>([])
-  const maxLogRef = useRef(Math.log(2))
+  const maxMRef = useRef(2)
   const stateRef = useRef<GameState>({
     roundId: null, roundNumber: 0, status: 'waiting', multiplier: 1,
     serverSeedHash: '', clientSeed: '', bettingEndsAt: 0, startTime: 0, bets: []
@@ -88,12 +88,13 @@ export default function CrashGame() {
     const isCrashed = stateRef.current.status === 'crashed'
     const color = isCrashed ? '#ef4444' : '#00e676'
 
-    // Recompute y from stored logM with current maxLog
-    const ml = maxLogRef.current
-    const mapped = pts.map(p => ({
-      x: p.x,
-      y: Math.max(8, H - 8 - (p.logM / ml) * (H - 20))
-    }))
+    // Map actual multiplier to Y: curve starts bottom-left, grows exponentially
+    const maxM = maxMRef.current
+    const PAD_L = 8, PAD_B = 8, PAD_T = 16, PAD_R = 8
+    const gW = W - PAD_L - PAD_R
+    const gH = H - PAD_T - PAD_B
+    const toY = (m: number) => PAD_T + gH - ((m - 1) / (maxM - 1)) * gH
+    const mapped = pts.map(p => ({ x: PAD_L + p.x, y: Math.max(PAD_T, toY(p.m)) }))
 
     // Glow line
     ctx.save()
@@ -106,7 +107,7 @@ export default function CrashGame() {
     // Fill
     ctx.beginPath(); ctx.moveTo(mapped[0].x, mapped[0].y)
     for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y)
-    ctx.lineTo(mapped[mapped.length - 1].x, H); ctx.lineTo(mapped[0].x, H); ctx.closePath()
+    ctx.lineTo(mapped[mapped.length - 1].x, H - PAD_B); ctx.lineTo(mapped[0].x, H - PAD_B); ctx.closePath()
     const g = ctx.createLinearGradient(0, 0, 0, H)
     g.addColorStop(0, isCrashed ? 'rgba(239,68,68,0.2)' : 'rgba(0,230,118,0.15)')
     g.addColorStop(1, 'rgba(0,0,0,0)')
@@ -135,11 +136,13 @@ export default function CrashGame() {
     const dpr = window.devicePixelRatio || 1
     const W = canvas.width / dpr
     const elapsed = (Date.now() - startTime) / 1000
-    const x = Math.min(W - 16, 16 + (elapsed / 45) * (W - 32))
-    const logM = Math.log(Math.max(1.001, multiplier))
-    // Grow maxLog so current point is at ~75% height
-    if (logM * 1.35 > maxLogRef.current) maxLogRef.current = logM * 1.35
-    ptsRef.current.push({ x, y: 0, logM })
+    // x: 0..gW proportional to elapsed time (45s = full width)
+    const gW = W - 16
+    const x = Math.min(gW, (elapsed / 45) * gW)
+    const m = Math.max(1, multiplier)
+    // Grow maxM so current point sits at ~75% height
+    if (m * 1.4 > maxMRef.current) maxMRef.current = m * 1.4
+    ptsRef.current.push({ x, y: 0, m })
     drawGraph()
   }, [drawGraph])
 
@@ -155,7 +158,7 @@ export default function CrashGame() {
 
   useEffect(() => {
     initCanvas()
-    const onResize = () => { initCanvas(); ptsRef.current = []; maxLogRef.current = Math.log(2); drawGraph() }
+    const onResize = () => { initCanvas(); ptsRef.current = []; maxMRef.current = 2; drawGraph() }
     window.addEventListener('resize', onResize)
     return () => window.removeEventListener('resize', onResize)
   }, [initCanvas, drawGraph])
@@ -172,17 +175,17 @@ export default function CrashGame() {
       if (msg.type === 'init') {
         stateRef.current = msg.state; setState(msg.state)
         if (msg.state.status === 'running' && msg.state.multiplier > 1) {
-          maxLogRef.current = Math.max(Math.log(msg.state.multiplier) * 1.35, Math.log(2))
+          maxMRef.current = Math.max(msg.state.multiplier * 1.4, 2)
         }
       }
       if (msg.type === 'round_start') {
-        ptsRef.current = []; maxLogRef.current = Math.log(2)
+        ptsRef.current = []; maxMRef.current = 2
         setCrashed(false); setCrashedAt(1); setHasBet(false); setCashedOut(false); setMyProfit(null)
         const s = { ...stateRef.current, roundId: msg.roundId, roundNumber: msg.roundNumber, serverSeedHash: msg.serverSeedHash, clientSeed: msg.clientSeed, status: 'betting' as GameStatus, multiplier: 1, bettingEndsAt: msg.bettingEndsAt, bets: [] }
         stateRef.current = s; setState(s)
       }
       if (msg.type === 'round_running') {
-        ptsRef.current = []; maxLogRef.current = Math.log(2)
+        ptsRef.current = []; maxMRef.current = 2
         setState(prev => { const s = { ...prev, status: 'running' as GameStatus, startTime: msg.startTime, multiplier: 1 }; stateRef.current = s; return s })
       }
       if (msg.type === 'tick') {

@@ -422,13 +422,10 @@ export default function PlinkoGame() {
     loadHist()
   }, [token])
 
-  const MAX_BALLS = 8
-
   // ── Play one ball (fire-and-forget, multiple can run in parallel) ─────────
   const play = useCallback(async () => {
     const betNum = parseFloat(betRef.current)
     if (!betNum || betNum <= 0) { addToast('Введите сумму ставки', 'error'); return }
-    if (ballsRef.current.length >= MAX_BALLS) return
 
     setActiveBalls(n => n + 1)
     try {
@@ -473,6 +470,22 @@ export default function PlinkoGame() {
   function onBetUp() { stopHold() }
 
   useEffect(() => () => stopHold(), [])
+
+  // Spacebar hold-to-bet
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code !== 'Space' || e.repeat) return
+      e.preventDefault()
+      onBetDown()
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.code !== 'Space') return
+      onBetUp()
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => { window.removeEventListener('keydown', down); window.removeEventListener('keyup', up) }
+  }, [])
 
   const totalProfit = sesHist.reduce((s, h) => s + (h.m - 1) * parseFloat(bet || '0'), 0)
 

@@ -44,6 +44,7 @@ export default function CrashGame() {
   const [history, setHistory] = useState<HistoryEntry[]>([])
   const [verifyModal, setVerifyModal] = useState<HistoryEntry | null>(null)
   const [verifyData, setVerifyData] = useState<any>(null)
+  const [wsConnected, setWsConnected] = useState(false)
   const [crashed, setCrashed] = useState(false)
   const [crashedAt, setCrashedAt] = useState<number>(1)
   const stateRef = useRef(state)
@@ -120,10 +121,8 @@ export default function CrashGame() {
     const ws = new WebSocket(url)
     wsRef.current = ws
 
-    ws.onopen = () => console.log('Crash WS connected')
-    ws.onclose = () => {
-      setTimeout(() => wsRef.current?.readyState === WebSocket.CLOSED && window.location.reload(), 3000)
-    }
+    ws.onopen = () => { console.log('Crash WS connected'); setWsConnected(true) }
+    ws.onclose = () => { console.log('Crash WS disconnected'); setWsConnected(false) }
 
     ws.onmessage = (e) => {
       const msg = JSON.parse(e.data)
@@ -255,6 +254,17 @@ export default function CrashGame() {
   const isRunning = state.status === 'running'
   const isBetting = state.status === 'betting'
   const isCrashed = state.status === 'crashed'
+
+  if (!wsConnected) return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 60px)', background: '#0d0d0d', color: '#fff', gap: 16 }}>
+      <div style={{ fontSize: 48 }}>🚀</div>
+      <div style={{ fontSize: 20, fontWeight: 800 }}>Crash</div>
+      <div style={{ fontSize: 13, color: '#444' }}>Подключение к серверу...</div>
+      <div style={{ width: 32, height: 32, border: '3px solid #222', borderTopColor: '#e4a832', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+      <div style={{ fontSize: 11, color: '#333', marginTop: 8 }}>Сервис ещё не запущен или недоступен</div>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+    </div>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 60px)', background: '#0d0d0d', color: '#fff', overflow: 'hidden' }}>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useUIStore } from '../../store/useUIStore'
+import ToastContainer from '../../components/ui/Toast'
 
 const CRASH_WS_URL = import.meta.env.VITE_CRASH_WS_URL || 'wss://buhbot-production-ddcd.up.railway.app/crash'
 
@@ -180,6 +181,7 @@ export default function CrashGame() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', background: '#0d0d0d', color: '#fff', minHeight: '100%' }}>
+      <ToastContainer />
 
       {/* History bar */}
       <div style={{ display: 'flex', gap: 6, padding: '10px 14px', background: '#111', borderBottom: '1px solid #1a1a1a', overflowX: 'auto', flexShrink: 0 }}>

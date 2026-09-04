@@ -1,5 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { v4 as uuidv4 } from 'uuid';
 import { baccaratService } from '../services/baccarat.service';
 
 const router = Router();
@@ -50,7 +51,7 @@ router.post('/play', auth, async (req: Request, res: Response, next: NextFunctio
       res.status(400).json({ success: false, error: 'Place at least one bet' }); return;
     }
 
-    const tempId = require('uuid').v4();
+    const tempId = uuidv4();
     const debited = await debit(userId, totalBet, `baccarat_${tempId}`);
     if (!debited) {
       res.status(402).json({ success: false, error: 'Insufficient funds' }); return;

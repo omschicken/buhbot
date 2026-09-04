@@ -31,4 +31,12 @@ export const deleteBonus = (id: string) => api.delete(`/admin/bonuses/${id}`)
 export const testDeposit = (id: string, amount: number, coin: string) =>
   api.post(`/admin/players/${id}/test-deposit`, { amount, coin })
 
+export const getAffiliates = () => api.get('/admin/affiliates')
+export const getAffiliatePayouts = (status = 'pending') =>
+  api.get('/admin/affiliate/payouts', { params: { status } })
+export const approveAffiliatePayout = (id: string, txHash: string) =>
+  api.post(`/admin/affiliate/payouts/${id}/approve`, { txHash })
+export const rejectAffiliatePayout = (id: string, reason?: string) =>
+  api.post(`/admin/affiliate/payouts/${id}/reject`, { reason })
+
 export const seedAdmin = () => api.post('/admin/seed')

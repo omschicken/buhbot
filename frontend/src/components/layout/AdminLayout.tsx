@@ -9,6 +9,7 @@ const NAV = [
   { to: '/admin/kyc', label: 'KYC', icon: '\u{1F50D}' },
   { to: '/admin/transactions', label: 'Transactions', icon: '\u{1F4CB}' },
   { to: '/admin/bonuses', label: 'Bonuses', icon: '\u{1F381}' },
+  { to: '/admin/affiliates', label: 'Affiliates', icon: '🤝' },
   { to: '/admin/settings', label: 'Settings', icon: '⚙️' },
 ]
 

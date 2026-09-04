@@ -23,6 +23,7 @@ import AdminKYC from './pages/admin/KYC'
 import AdminTransactions from './pages/admin/Transactions'
 import AdminBonuses from './pages/admin/Bonuses'
 import AdminSettings from './pages/admin/Settings'
+import AdminAffiliates from './pages/admin/Affiliates'
 import './styles/globals.css'
 import './styles/animations.css'
 
@@ -79,6 +80,7 @@ export default function App() {
             <Route path="kyc" element={<AdminKYC />} />
             <Route path="transactions" element={<AdminTransactions />} />
             <Route path="bonuses" element={<AdminBonuses />} />
+            <Route path="affiliates" element={<AdminAffiliates />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
         </Routes>

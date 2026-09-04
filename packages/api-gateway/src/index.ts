@@ -134,6 +134,31 @@ app.use(proxy(KYC_URL, '/api/admin/kyc', { '^/api/admin/kyc': '/admin/kyc' }));
 // Admin routes — bonus
 app.use(proxy(BONUS_URL, '/api/admin/bonuses', { '^/api/admin': '/admin' }));
 
+// Admin routes — affiliate payouts (direct routes for POST with :id params)
+app.post('/api/admin/affiliate/payouts/:id/approve', verifyToken, adminOnly, express.json(), async (req, res) => {
+  try {
+    const r = await fetch(`${AFFILIATE_URL}/admin/affiliate/payouts/${req.params.id}/approve`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+app.post('/api/admin/affiliate/payouts/:id/reject', verifyToken, adminOnly, express.json(), async (req, res) => {
+  try {
+    const r = await fetch(`${AFFILIATE_URL}/admin/affiliate/payouts/${req.params.id}/reject`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: req.headers.authorization || '' },
+      body: JSON.stringify(req.body),
+    });
+    const data = await r.json();
+    res.status(r.status).json(data);
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+app.use(proxy(AFFILIATE_URL, ['/api/admin/affiliate', '/api/admin/affiliates'], { '^/api/admin': '/admin' }));
+
 // Combined admin stats
 app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {
   try {

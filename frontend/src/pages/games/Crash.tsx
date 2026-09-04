@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/useAuthStore'
 import { useUIStore } from '../../store/useUIStore'
 import ToastContainer from '../../components/ui/Toast'
@@ -17,8 +18,26 @@ interface GameState {
 const crashColor = (x: number) => x < 2 ? '#ef4444' : x < 5 ? '#f59e0b' : '#22c55e'
 
 export default function CrashGame() {
-  const { token } = useAuthStore()
+  const { token, user, balance } = useAuthStore()
   const { addToast } = useUIStore()
+  const navigate = useNavigate()
+  const [fullscreen, setFullscreen] = useState(false)
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {})
+      setFullscreen(true)
+    } else {
+      document.exitFullscreen().catch(() => {})
+      setFullscreen(false)
+    }
+  }
+
+  useEffect(() => {
+    const onFsChange = () => setFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
   const wsRef = useRef<WebSocket | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const pointsRef = useRef<{ x: number; y: number }[]>([])
@@ -239,6 +258,46 @@ export default function CrashGame() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', width: '100%', background: '#0d0d0d', color: '#fff', minHeight: '100%' }}>
       <ToastContainer />
+
+      {/* Game header */}
+      {!fullscreen && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '0 14px', height: 48, background: '#111', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
+          <button onClick={() => navigate('/')}
+            style={{ background: 'none', border: 'none', color: '#555', fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '4px 6px' }}>
+            ←
+          </button>
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>🚀 Crash</span>
+          <div style={{ flex: 1 }} />
+          {token && user ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 10, color: '#444', lineHeight: 1 }}>БАЛАНС</div>
+                <div style={{ fontSize: 13, fontWeight: 800, color: '#e4a832' }}>${Number(balance).toFixed(2)}</div>
+              </div>
+              <div style={{ width: 30, height: 30, borderRadius: '50%', background: '#1a1a1a', border: '1px solid #333', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: '#666' }}>
+                {(user as any).username?.[0]?.toUpperCase() || '?'}
+              </div>
+            </div>
+          ) : (
+            <button onClick={() => navigate('/login')}
+              style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: '#e4a832', color: '#000', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+              Войти
+            </button>
+          )}
+          <button onClick={toggleFullscreen} title="Полный экран"
+            style={{ background: 'none', border: '1px solid #222', borderRadius: 6, color: '#444', fontSize: 14, cursor: 'pointer', padding: '5px 8px', lineHeight: 1 }}>
+            ⛶
+          </button>
+        </div>
+      )}
+
+      {/* Fullscreen exit button */}
+      {fullscreen && (
+        <button onClick={toggleFullscreen}
+          style={{ position: 'fixed', top: 10, right: 10, zIndex: 9999, background: '#111', border: '1px solid #333', borderRadius: 6, color: '#555', fontSize: 14, cursor: 'pointer', padding: '6px 10px' }}>
+          ✕ Выйти
+        </button>
+      )}
 
       {/* History bar */}
       <div style={{ display: 'flex', gap: 6, padding: '10px 14px', background: '#111', borderBottom: '1px solid #1a1a1a', overflowX: 'auto', flexShrink: 0 }}>

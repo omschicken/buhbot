@@ -4,14 +4,13 @@ import { useAuthStore } from '../../store/useAuthStore'
 import { getBalance } from '../../api/wallet'
 import { api } from '../../api/axios'
 
-const API = import.meta.env.VITE_API_URL || ''
+
 
 // ─── Suit / card helpers ────────────────────────────────────────────────────
 const SUITS = ['♠', '♥', '♦', '♣']
 const CARD_NAMES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 function suitFor(idx: number, pos: number) { return SUITS[(idx * 3 + pos) % 4] }
 function cardColor(suit: string) { return suit === '♥' || suit === '♦' ? '#e53e3e' : '#fff' }
-function cardValue(c: number) { return c >= 10 ? 0 : c === 0 ? 1 : c }
 
 // ─── Web Audio ──────────────────────────────────────────────────────────────
 function makeAudio() {
@@ -128,7 +127,7 @@ export default function BaccaratGame() {
   const [result, setResult] = useState<RoundResult | null>(null)
   const [visibleCards, setVisibleCards] = useState<{ player: number[]; banker: number[] }>({ player: [], banker: [] })
   const [dealing, setDealing] = useState(false)
-  const [history, setHistory] = useState<HistoryEntry[]>([])
+  const [_history, setHistory] = useState<HistoryEntry[]>([])
   const [sessionHistory, setSessionHistory] = useState<Array<{ winner: 'player' | 'banker' | 'tie' }>>([])
   const [fairModal, setFairModal] = useState(false)
   const [customSeed, setCustomSeed] = useState('')

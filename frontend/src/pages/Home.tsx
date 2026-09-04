@@ -6,6 +6,7 @@ import { useJackpot, usePaidToday, useOnlinePlayers } from '../hooks/useLiveCoun
 const CATEGORIES = ['All', 'Slots', 'Live', 'Table', 'Crash', 'New']
 
 const GAMES = [
+  { id: 'crash', name: 'Crash', provider: 'APEXGAME Originals', category: 'Crash', rtp: 99, hot: true, img: '🚀', internal: true },
   { id: 1, name: 'Aviator', provider: 'Spribe', category: 'Crash', rtp: 97, hot: true, img: '✈️' },
   { id: 2, name: 'Sweet Bonanza', provider: 'Pragmatic', category: 'Slots', rtp: 96.5, hot: true, img: '\u{1F36C}' },
   { id: 3, name: 'Lightning Roulette', provider: 'Evolution', category: 'Live', rtp: 97.3, hot: false, img: '⚡' },
@@ -93,7 +94,7 @@ export default function Home() {
       <div style={{ flex: 1, overflow: 'auto', padding: '0 24px 24px' }} className="games-scroll">
         <div className="games-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 12 }}>
           {filtered.map((game) => (
-            <div key={game.id} className="gcard" onClick={() => navigate(`/game/${game.id}`)}
+            <div key={game.id} className="gcard" onClick={() => (game as any).internal ? navigate(`/games/crash`) : navigate(`/game/${game.id}`)}
               style={{
                 background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12,
                 overflow: 'hidden', cursor: 'pointer', transition: 'all 0.2s', position: 'relative',

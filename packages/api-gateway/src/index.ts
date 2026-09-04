@@ -16,6 +16,7 @@ const WALLET_URL = process.env.WALLET_SERVICE_URL || 'http://wallet-service.rail
 const KYC_URL = process.env.KYC_SERVICE_URL || 'http://kyc-service.railway.internal:3003';
 const BONUS_URL = process.env.BONUS_SERVICE_URL || 'http://bonus-engine.railway.internal:3005';
 const AFFILIATE_URL = process.env.AFFILIATE_SERVICE_URL || 'http://affiliate-service.railway.internal:3006';
+const CRASH_URL = process.env.CRASH_SERVICE_URL || 'http://crash-game.railway.internal:3008';
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: '*', credentials: false }));
@@ -158,6 +159,9 @@ app.post('/api/admin/affiliate/payouts/:id/reject', verifyToken, adminOnly, expr
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 app.use(proxy(AFFILIATE_URL, ['/api/admin/affiliate', '/api/admin/affiliates'], { '^/api/admin': '/admin' }));
+
+// Crash game — public routes (history, state, verify)
+app.use(proxy(CRASH_URL, '/api/crash', { '^/api/crash': '/crash' }));
 
 // Combined admin stats
 app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {

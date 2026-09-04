@@ -15,6 +15,7 @@ import Wallet from './pages/Wallet'
 import Profile from './pages/Profile'
 import Bonuses from './pages/Bonuses'
 import Affiliate from './pages/Affiliate'
+import CrashGame from './pages/games/Crash'
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminPlayers from './pages/admin/Players'
 import AdminPlayerDetail from './pages/admin/PlayerDetail'
@@ -69,6 +70,7 @@ export default function App() {
             <Route path="/bonuses" element={<ProtectedRoute><Bonuses /></ProtectedRoute>} />
             <Route path="/affiliate" element={<ProtectedRoute><Affiliate /></ProtectedRoute>} />
           </Route>
+          <Route path="/games/crash" element={<CrashGame />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/game/:id" element={<ProtectedRoute><Game /></ProtectedRoute>} />

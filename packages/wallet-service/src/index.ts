@@ -337,6 +337,48 @@ app.get('/wallet/deposit/:txHash/status', auth, async (req, res) => {
   } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
+// Internal game endpoints (no JWT — called server-to-server only, Railway internal network)
+app.post('/wallet/internal/debit', express.json(), async (req, res) => {
+  const { userId, amount, type, game, referenceId } = req.body;
+  if (!userId || !amount || amount <= 0) { res.status(400).json({ error: 'Invalid params' }); return; }
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const walletRes = await client.query('SELECT balance FROM wallets WHERE user_id=$1 FOR UPDATE', [userId]);
+    if (!walletRes.rows[0] || Number(walletRes.rows[0].balance) < amount) {
+      await client.query('ROLLBACK');
+      res.status(400).json({ error: 'Insufficient funds' }); return;
+    }
+    await client.query('UPDATE wallets SET balance=balance-$1 WHERE user_id=$2', [amount, userId]);
+    await client.query(
+      `INSERT INTO transactions (user_id, type, amount, reference_id, description)
+       VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+      [userId, type || 'bet', amount, referenceId, game ? `${game} bet` : 'game bet']
+    );
+    await client.query('COMMIT');
+    const newBal = await pool.query('SELECT balance FROM wallets WHERE user_id=$1', [userId]);
+    res.json({ success: true, balance: Number(newBal.rows[0].balance) });
+  } catch (e: any) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: e.message });
+  } finally { client.release(); }
+});
+
+app.post('/wallet/internal/credit', express.json(), async (req, res) => {
+  const { userId, amount, type, game, referenceId } = req.body;
+  if (!userId || !amount || amount <= 0) { res.status(400).json({ error: 'Invalid params' }); return; }
+  try {
+    await pool.query('UPDATE wallets SET balance=balance+$1 WHERE user_id=$2', [amount, userId]);
+    await pool.query(
+      `INSERT INTO transactions (user_id, type, amount, reference_id, description)
+       VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,
+      [userId, type || 'win', amount, referenceId, game ? `${game} win` : 'game win']
+    );
+    const newBal = await pool.query('SELECT balance FROM wallets WHERE user_id=$1', [userId]);
+    res.json({ success: true, balance: Number(newBal.rows[0].balance) });
+  } catch (e: any) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/wallet/coins', (_req, res) => {
   res.json({ coins: Object.values(COINS).map(c => ({ symbol: c.symbol, name: c.name, confirmations: c.confirmations })) });
 });

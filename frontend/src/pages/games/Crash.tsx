@@ -176,12 +176,17 @@ export default function CrashGame() {
   useEffect(() => {
     const container = graphContainerRef.current
     if (!container) return
-    // rAF гарантирует что layout завершён до чтения размеров
-    const raf = requestAnimationFrame(() => { initCanvas(); drawGraph() })
     const ro = new ResizeObserver(() => { initCanvas(); drawGraph() })
     ro.observe(container)
-    return () => { cancelAnimationFrame(raf); ro.disconnect() }
-  }, [initCanvas, drawGraph])
+    // двойной rAF: первый кадр — браузер рассчитывает flex-layout,
+    // второй — размеры стабилизированы, можно читать getBoundingClientRect
+    let raf2: number
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => { initCanvas(); drawGraph() })
+    })
+    return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); ro.disconnect() }
+  // wsConnected: контейнер появляется в DOM только после подключения
+  }, [initCanvas, drawGraph, wsConnected])
 
   // Если зашли в середине раунда — восстанавливаем историю тиков по startTime
   useEffect(() => {

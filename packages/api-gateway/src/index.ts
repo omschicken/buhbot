@@ -17,6 +17,7 @@ const KYC_URL = process.env.KYC_SERVICE_URL || 'http://kyc-service.railway.inter
 const BONUS_URL = process.env.BONUS_SERVICE_URL || 'http://bonus-engine.railway.internal:3005';
 const AFFILIATE_URL = process.env.AFFILIATE_SERVICE_URL || 'http://affiliate-service.railway.internal:3006';
 const CRASH_URL = process.env.CRASH_SERVICE_URL || 'http://crash-game.railway.internal:3008';
+const BACCARAT_URL = process.env.BACCARAT_SERVICE_URL || 'http://baccarat-game.railway.internal:3009';
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: '*', credentials: false }));
@@ -162,6 +163,9 @@ app.use(proxy(AFFILIATE_URL, ['/api/admin/affiliate', '/api/admin/affiliates'], 
 
 // Crash game — public routes (history, state, verify)
 app.use(proxy(CRASH_URL, '/api/crash', { '^/api/crash': '/crash' }));
+
+// Baccarat game
+app.use(proxy(BACCARAT_URL, '/api/baccarat', { '^/api/baccarat': '/baccarat' }));
 
 // Combined admin stats
 app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {

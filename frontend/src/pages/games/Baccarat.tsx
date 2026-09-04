@@ -6,131 +6,125 @@ import { getBalance } from '../../api/wallet'
 import { api } from '../../api/axios'
 import ToastContainer from '../../components/ui/Toast'
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
 const SUITS = ['♠', '♥', '♦', '♣']
 const CARD_NAMES = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K']
 function suitFor(idx: number, pos: number) { return SUITS[(idx * 3 + pos) % 4] }
-function cardColor(suit: string) { return suit === '♥' || suit === '♦' ? '#ef4444' : '#fff' }
+function isRed(suit: string) { return suit === '♥' || suit === '♦' }
 
-const winColor = { player: '#3b82f6', banker: '#ef4444', tie: '#22c55e' }
+const W = { player: '#3b82f6', banker: '#ef4444', tie: '#22c55e' }
 
-// ─── Web Audio ──────────────────────────────────────────────────────────────
 function makeAudio() {
   const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-  const dealSound = () => {
+  const beep = (freq: number, dur: number, vol = 0.1) => {
     const o = ctx.createOscillator(); const g = ctx.createGain()
     o.connect(g); g.connect(ctx.destination)
-    o.frequency.value = 900; g.gain.setValueAtTime(0.12, ctx.currentTime)
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.07)
-    o.start(); o.stop(ctx.currentTime + 0.07)
+    o.frequency.value = freq; g.gain.setValueAtTime(vol, ctx.currentTime)
+    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + dur)
+    o.start(); o.stop(ctx.currentTime + dur)
   }
-  const winSound = () => {
-    [523, 659, 784, 1047].forEach((f, i) => {
-      const o = ctx.createOscillator(); const g = ctx.createGain()
-      o.connect(g); g.connect(ctx.destination)
-      o.frequency.value = f; g.gain.setValueAtTime(0.1, ctx.currentTime + i * 0.09)
-      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + i * 0.09 + 0.12)
-      o.start(ctx.currentTime + i * 0.09); o.stop(ctx.currentTime + i * 0.09 + 0.12)
-    })
+  return {
+    deal: () => beep(900, 0.07),
+    win: () => [523, 659, 784, 1047].forEach((f, i) => setTimeout(() => beep(f, 0.12, 0.09), i * 90)),
+    lose: () => { const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'sawtooth'; o.connect(g); g.connect(ctx.destination); o.frequency.value = 180; g.gain.setValueAtTime(0.07, ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3); o.start(); o.stop(ctx.currentTime + 0.3) },
   }
-  const loseSound = () => {
-    const o = ctx.createOscillator(); const g = ctx.createGain()
-    o.connect(g); g.connect(ctx.destination)
-    o.type = 'sawtooth'; o.frequency.value = 180
-    g.gain.setValueAtTime(0.07, ctx.currentTime)
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3)
-    o.start(); o.stop(ctx.currentTime + 0.3)
-  }
-  return { dealSound, winSound, loseSound }
 }
 
-// ─── Types ──────────────────────────────────────────────────────────────────
 interface RoundResult {
-  roundId: string
-  playerCards: number[]
-  bankerCards: number[]
-  playerScore: number
-  bankerScore: number
-  winner: 'player' | 'banker' | 'tie'
-  payout: number
-  profit: number
-  isNatural: boolean
+  roundId: string; playerCards: number[]; bankerCards: number[]
+  playerScore: number; bankerScore: number; winner: 'player' | 'banker' | 'tie'
+  payout: number; profit: number; isNatural: boolean
   provablyFair: { serverSeed: string; serverSeedHash: string; clientSeed: string; nonce: number }
 }
 interface HistoryEntry {
-  id: string
-  winner: 'player' | 'banker' | 'tie'
-  profit: number
-  total_bet: number
-  player_score: number
-  banker_score: number
-  created_at: string
+  id: string; winner: 'player' | 'banker' | 'tie'; profit: number
+  total_bet: number; player_score: number; banker_score: number; created_at: string
 }
-
 type Tab = 'game' | 'history' | 'fair'
-type BetSide = 'player' | 'banker' | 'tie'
+type Side = 'player' | 'banker' | 'tie'
 
-// ─── Card ─────────────────────────────────────────────────────────────────────
-const CARD_CSS = `
-  .bac-slot { width:58px; height:84px; border-radius:8px; flex-shrink:0; border:1px dashed #252525; background:#0d0d0d; }
-  @keyframes bac-flip-out { 0%{transform:scaleX(1)} 100%{transform:scaleX(0)} }
-  @keyframes bac-flip-in  { 0%{transform:scaleX(0)} 100%{transform:scaleX(1)} }
-  .bac-flip-out { animation: bac-flip-out 0.2s ease forwards; }
-  .bac-flip-in  { animation: bac-flip-in  0.2s ease forwards; }
+const CHIPS = [
+  { v: 1, bg: '#e5e7eb', bd: '#9ca3af', tx: '#111' },
+  { v: 5, bg: '#ef4444', bd: '#dc2626', tx: '#fff' },
+  { v: 10, bg: '#3b82f6', bd: '#2563eb', tx: '#fff' },
+  { v: 25, bg: '#22c55e', bd: '#16a34a', tx: '#fff' },
+  { v: 100, bg: '#a855f7', bd: '#9333ea', tx: '#fff' },
+  { v: 500, bg: '#f97316', bd: '#ea580c', tx: '#fff' },
+]
+
+const CSS = `
+  .bac { display:flex; flex-direction:column; width:100%; height:100svh; background:#0a0a0a; color:#fff; overflow:hidden; font-family:system-ui,sans-serif; }
+  .bac-hdr { display:flex; align-items:center; gap:6px; padding:0 10px; height:48px; background:#111; border-bottom:1px solid #1e1e1e; flex-shrink:0; }
+  .bac-tabs { display:flex; background:#161616; border-radius:7px; padding:2px; }
+  .bac-tab { padding:5px 9px; border-radius:5px; border:none; font-size:10px; font-weight:700; cursor:pointer; white-space:nowrap; background:none; color:#555; }
+  .bac-tab.on { background:#252525; color:#fff; }
+  .bac-btn { background:#1a1a1a; border:1px solid #252525; border-radius:7px; color:#aaa; font-size:14px; cursor:pointer; padding:5px 9px; line-height:1; }
+
+  .bac-table { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px; padding:10px 14px; background:#0d0d0d; min-height:0; overflow:hidden; }
+
+  .bac-zone { width:100%; max-width:500px; background:#111; border-radius:12px; padding:12px 14px; }
+  .bac-zone-hdr { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+  .bac-zone-label { font-size:10px; font-weight:900; letter-spacing:2px; }
+  .bac-zone-score { font-size:32px; font-weight:900; font-variant-numeric:tabular-nums; line-height:1; }
+  .bac-cards { display:flex; gap:8px; align-items:flex-start; }
+
+  .bac-card { width:56px; height:80px; border-radius:8px; flex-shrink:0; position:relative; overflow:hidden; }
+  .bac-card-back { width:56px; height:80px; border-radius:8px; flex-shrink:0;
+    background:linear-gradient(135deg,#1e3a8a,#1d4ed8); border:1px solid #2563eb;
+    box-shadow:0 4px 12px rgba(0,0,0,.7); display:flex; align-items:center; justify-content:center; }
+  .bac-card-front { width:56px; height:80px; border-radius:8px; flex-shrink:0;
+    background:#fff; border:1px solid #e2e8f0;
+    box-shadow:0 4px 12px rgba(0,0,0,.7); display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; }
+  .bac-card-slot { width:56px; height:80px; border-radius:8px; flex-shrink:0; background:transparent; }
+
+  @keyframes bac-out { 0%{transform:scaleX(1)} 100%{transform:scaleX(0)} }
+  @keyframes bac-in  { 0%{transform:scaleX(0)} 100%{transform:scaleX(1)} }
+  .bac-anim-out { animation:bac-out .18s ease forwards; }
+  .bac-anim-in  { animation:bac-in  .18s ease forwards; }
+
+  .bac-mid { height:50px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+
+  .bac-panel { background:#111; border-top:1px solid #1e1e1e; padding:8px 10px; flex-shrink:0; }
+  .bac-sides { display:flex; gap:5px; margin-bottom:8px; }
+  .bac-side { border-radius:8px; border:2px solid #252525; background:#161616; color:#555; cursor:pointer; padding:7px 6px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  .bac-side.on { border-color:var(--c); background:color-mix(in srgb, var(--c) 12%, transparent); color:var(--c); }
+  .bac-chips { display:flex; gap:5px; margin-bottom:8px; justify-content:center; }
+  .bac-chip { border-radius:50%; cursor:pointer; font-size:9px; font-weight:900; transition:transform .1s; }
+  .bac-chip:hover { transform:scale(1.12); }
+  .bac-actions { display:flex; gap:5px; }
+  .bac-act { flex:1; padding:11px; border-radius:8px; border:1px solid #252525; background:#161616; color:#888; font-size:11px; font-weight:700; cursor:pointer; }
+  .bac-deal { flex:2; padding:11px; border-radius:8px; border:none; font-size:13px; font-weight:900; cursor:pointer; letter-spacing:1px; }
+
+  .bac-hist-row { display:flex; align-items:center; justify-content:space-between; background:#111; border-radius:8px; padding:9px 12px; margin-bottom:5px; }
+  .bac-dots { display:flex; gap:3px; overflow-x:auto; }
+  .bac-dot { width:14px; height:14px; border-radius:50%; flex-shrink:0; font-size:7px; display:flex; align-items:center; justify-content:center; font-weight:900; }
+  .bac-fair-field { background:#161616; border:1px solid #252525; border-radius:7px; padding:8px 10px; font-size:10px; color:#aaa; word-break:break-all; margin-top:3px; }
 `
 
-function PlayingCard({ value, pos, visible }: { value: number; pos: number; visible: boolean }) {
-  const [phase, setPhase] = useState<'back' | 'mid' | 'front'>('back')
+function Card({ value, pos, visible }: { value: number; pos: number; visible: boolean }) {
+  const [phase, setPhase] = useState<'back' | 'out' | 'front'>('back')
   const suit = suitFor(value, pos)
-  const col = cardColor(suit)
+  const red = isRed(suit)
 
   useEffect(() => {
     if (!visible) { setPhase('back'); return }
-    setPhase('mid')
-    const t = setTimeout(() => setPhase('front'), 210)
+    setPhase('out')
+    const t = setTimeout(() => setPhase('front'), 190)
     return () => clearTimeout(t)
   }, [visible])
 
-  const isBack = phase === 'back' || phase === 'mid'
-  const animClass = phase === 'mid' ? 'bac-flip-out' : phase === 'front' ? 'bac-flip-in' : ''
-
-  if (isBack) {
-    return (
-      <div className={animClass} style={{
-        width: 58, height: 84, borderRadius: 8, flexShrink: 0,
-        background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8)',
-        border: '1px solid #2563eb', boxShadow: '0 3px 10px rgba(0,0,0,.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
-        <div style={{ fontSize: 22, opacity: 0.2 }}>♦</div>
-      </div>
-    )
-  }
+  if (phase === 'front') return (
+    <div className="bac-card-front bac-anim-in">
+      <div style={{ fontSize: 14, fontWeight: 900, color: red ? '#dc2626' : '#111', lineHeight: 1 }}>{CARD_NAMES[value]}</div>
+      <div style={{ fontSize: 20, color: red ? '#dc2626' : '#111', lineHeight: 1 }}>{suit}</div>
+    </div>
+  )
   return (
-    <div className={animClass} style={{
-      width: 58, height: 84, borderRadius: 8, flexShrink: 0,
-      background: '#fff', border: '1px solid #e5e7eb',
-      boxShadow: '0 3px 10px rgba(0,0,0,.6)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
-    }}>
-      <div style={{ fontSize: 15, fontWeight: 900, color: col, lineHeight: 1 }}>{CARD_NAMES[value]}</div>
-      <div style={{ fontSize: 18, color: col, lineHeight: 1 }}>{suit}</div>
+    <div className={`bac-card-back${phase === 'out' ? ' bac-anim-out' : ''}`}>
+      <div style={{ fontSize: 24, opacity: 0.18, color: '#fff' }}>♦</div>
     </div>
   )
 }
-function CardSlot() { return <div className="bac-slot" /> }
 
-// ─── Chips ───────────────────────────────────────────────────────────────────
-const CHIPS = [
-  { value: 1,   color: '#e5e7eb', border: '#9ca3af', text: '#111' },
-  { value: 5,   color: '#ef4444', border: '#dc2626', text: '#fff' },
-  { value: 10,  color: '#3b82f6', border: '#2563eb', text: '#fff' },
-  { value: 25,  color: '#22c55e', border: '#16a34a', text: '#fff' },
-  { value: 100, color: '#a855f7', border: '#9333ea', text: '#fff' },
-  { value: 500, color: '#f97316', border: '#ea580c', text: '#fff' },
-]
-
-// ─── Main ────────────────────────────────────────────────────────────────────
 export default function BaccaratGame() {
   const navigate = useNavigate()
   const { token, user, balance, setBalance } = useAuthStore()
@@ -139,415 +133,267 @@ export default function BaccaratGame() {
   const [tab, setTab] = useState<Tab>('game')
   const [bets, setBets] = useState({ player: 0, banker: 0, tie: 0 })
   const [lastBets, setLastBets] = useState({ player: 0, banker: 0, tie: 0 })
-  const [selectedSide, setSelectedSide] = useState<BetSide>('player')
+  const [side, setSide] = useState<Side>('player')
   const [result, setResult] = useState<RoundResult | null>(null)
-  const [visibleCards, setVisibleCards] = useState<{ player: number[]; banker: number[] }>({ player: [], banker: [] })
+  const [vis, setVis] = useState<{ player: number[]; banker: number[] }>({ player: [], banker: [] })
   const [dealing, setDealing] = useState(false)
   const [history, setHistory] = useState<HistoryEntry[]>([])
-  const [sessionHistory, setSessionHistory] = useState<Array<{ winner: 'player' | 'banker' | 'tie' }>>([])
+  const [sesHist, setSesHist] = useState<Array<{ w: Side }>>([])
   const [customSeed, setCustomSeed] = useState('')
   const [muted, setMuted] = useState(false)
-  const [fullscreen, setFullscreen] = useState(false)
   const audioRef = useRef<ReturnType<typeof makeAudio> | null>(null)
 
-  const toggleFullscreen = () => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(() => {})
-      setFullscreen(true)
-    } else {
-      document.exitFullscreen().catch(() => {})
-      setFullscreen(false)
-    }
-  }
-  useEffect(() => {
-    const fn = () => setFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', fn)
-    return () => document.removeEventListener('fullscreenchange', fn)
-  }, [])
-
-  const getAudio = useCallback(() => {
-    if (!audioRef.current) {
-      try { audioRef.current = makeAudio() } catch { return null }
-    }
+  const audio = useCallback(() => {
+    if (!audioRef.current) try { audioRef.current = makeAudio() } catch { return null }
     return audioRef.current
   }, [])
 
-  const loadHistory = useCallback(async () => {
-    try {
-      const r = await api.get('/baccarat/history')
-      setHistory((r.data?.data?.items || []).slice(0, 30))
-    } catch { }
+  const loadHist = useCallback(async () => {
+    try { const r = await api.get('/baccarat/history'); setHistory((r.data?.data?.items || []).slice(0, 30)) } catch { }
   }, [])
 
   useEffect(() => {
     if (!token) return
     getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
-    loadHistory()
+    loadHist()
   }, [token])
 
-  const totalBet = bets.player + bets.banker + bets.tie
-
-  const addChip = (value: number) => {
-    if (dealing) return
-    setBets(prev => ({ ...prev, [selectedSide]: +(prev[selectedSide] + value).toFixed(2) }))
-  }
-  const clearBets = () => { if (!dealing) setBets({ player: 0, banker: 0, tie: 0 }) }
-  const rebet = (mult = 1) => {
-    if (dealing) return
-    setBets({ player: +(lastBets.player * mult).toFixed(2), banker: +(lastBets.banker * mult).toFixed(2), tie: +(lastBets.tie * mult).toFixed(2) })
-  }
+  const total = bets.player + bets.banker + bets.tie
+  const addChip = (v: number) => { if (!dealing) setBets(p => ({ ...p, [side]: +(p[side] + v).toFixed(2) })) }
+  const clear = () => { if (!dealing) setBets({ player: 0, banker: 0, tie: 0 }) }
+  const rebet = (m = 1) => { if (!dealing) setBets({ player: +(lastBets.player * m).toFixed(2), banker: +(lastBets.banker * m).toFixed(2), tie: +(lastBets.tie * m).toFixed(2) }) }
 
   const deal = async () => {
-    if (dealing || totalBet <= 0 || !token) return
-    setDealing(true)
-    setResult(null)
-    setVisibleCards({ player: [], banker: [] })
+    if (dealing || total <= 0 || !token) return
+    setDealing(true); setResult(null); setVis({ player: [], banker: [] })
     try {
-      const r = await api.post('/baccarat/play', {
-        betPlayer: bets.player,
-        betBanker: bets.banker,
-        betTie: bets.tie,
-        clientSeed: customSeed || undefined,
-      })
-      const data: RoundResult = r.data.data
+      const r = await api.post('/baccarat/play', { betPlayer: bets.player, betBanker: bets.banker, betTie: bets.tie, clientSeed: customSeed || undefined })
+      const d: RoundResult = r.data.data
       setLastBets({ ...bets })
-
-      // Показываем все нужные карты рубашкой сразу
-      setVisibleCards({ player: [], banker: [] })
-      // небольшая пауза чтобы рубашки отрисовались
-      await new Promise(res => setTimeout(res, 150))
-
-      const order: Array<{ side: 'player' | 'banker'; idx: number }> = [
-        { side: 'player', idx: 0 }, { side: 'banker', idx: 0 },
-        { side: 'player', idx: 1 }, { side: 'banker', idx: 1 },
+      setResult(d)
+      await new Promise(res => setTimeout(res, 80))
+      const order: Array<{ s: 'player' | 'banker'; i: number }> = [
+        { s: 'player', i: 0 }, { s: 'banker', i: 0 },
+        { s: 'player', i: 1 }, { s: 'banker', i: 1 },
       ]
-      if (data.playerCards.length > 2) order.push({ side: 'player', idx: 2 })
-      if (data.bankerCards.length > 2) order.push({ side: 'banker', idx: 2 })
-
-      // Сначала устанавливаем result чтобы карты появились рубашкой
-      setResult(data)
-      await new Promise(res => setTimeout(res, 50))
-
-      const audio = getAudio()
-      for (const { side, idx } of order) {
-        await new Promise(res => setTimeout(res, 380))
-        if (!muted && audio) audio.dealSound()
-        setVisibleCards(prev => ({
-          ...prev,
-          [side]: prev[side].includes(idx) ? prev[side] : [...prev[side], idx],
-        }))
+      if (d.playerCards.length > 2) order.push({ s: 'player', i: 2 })
+      if (d.bankerCards.length > 2) order.push({ s: 'banker', i: 2 })
+      const a = audio()
+      for (const { s, i } of order) {
+        await new Promise(res => setTimeout(res, 370))
+        if (!muted && a) a.deal()
+        setVis(p => ({ ...p, [s]: p[s].includes(i) ? p[s] : [...p[s], i] }))
       }
       await new Promise(res => setTimeout(res, 400))
-      setSessionHistory(prev => [{ winner: data.winner }, ...prev].slice(0, 30))
-      if (!muted && audio) {
-        if (data.profit > 0) audio.winSound()
-        else if (data.profit < 0) audio.loseSound()
-      }
-      if (data.profit > 0) addToast(`+$${data.profit.toFixed(2)} 🎉`, 'success')
+      setSesHist(p => [{ w: d.winner }, ...p].slice(0, 30))
+      if (!muted && a) { if (d.profit > 0) a.win(); else if (d.profit < 0) a.lose() }
+      if (d.profit > 0) addToast(`+$${d.profit.toFixed(2)} 🎉`, 'success')
       getBalance().then(res => setBalance(res.data?.balance ?? 0)).catch(() => {})
-      loadHistory()
+      loadHist()
     } catch (e: any) {
-      const msg = e.response?.data?.error || e.message || 'Ошибка'
-      addToast(msg, 'error')
-    } finally {
-      setDealing(false)
-    }
+      addToast(e.response?.data?.error || e.message || 'Ошибка', 'error')
+    } finally { setDealing(false) }
   }
 
-  const totalP = sessionHistory.length
-  const pWins = sessionHistory.filter(h => h.winner === 'player').length
-  const bWins = sessionHistory.filter(h => h.winner === 'banker').length
-  const ties  = sessionHistory.filter(h => h.winner === 'tie').length
+  const pct = (n: number) => sesHist.length ? Math.round(n / sesHist.length * 100) : 0
+  const pW = sesHist.filter(h => h.w === 'player').length
+  const bW = sesHist.filter(h => h.w === 'banker').length
+  const tW = sesHist.filter(h => h.w === 'tie').length
 
   const winLabel = { player: 'PLAYER WINS', banker: 'BANKER WINS', tie: 'TIE' }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', width: '100%', height: '100svh', background: '#0a0a0a', color: '#fff', overflow: 'hidden', fontFamily: 'system-ui,sans-serif' }}>
+    <div className="bac">
+      <style>{CSS}</style>
       <ToastContainer />
 
-      {/* ── HEADER ── */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '0 10px', height: 48, background: '#111', borderBottom: '1px solid #1e1e1e', flexShrink: 0 }}>
-        <button onClick={() => navigate('/')}
-          style={{ background: '#1a1a1a', border: '1px solid #252525', borderRadius: 7, color: '#aaa', fontSize: 15, cursor: 'pointer', padding: '5px 9px', lineHeight: 1, flexShrink: 0 }}>
-          ←
-        </button>
-        <span style={{ fontSize: 13, fontWeight: 800, color: '#fff', letterSpacing: 0.5, flexShrink: 0 }}>🃏 BACCARAT</span>
-
-        {/* Tabs */}
-        <div style={{ display: 'flex', background: '#161616', borderRadius: 7, padding: 2, flexShrink: 0 }}>
-          {([['game', 'Игра'], ['history', 'История'], ['fair', 'Честность']] as [Tab, string][]).map(([t, label]) => (
-            <button key={t} onClick={() => setTab(t)}
-              style={{ padding: '5px 9px', borderRadius: 5, border: 'none', fontSize: 10, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap',
-                background: tab === t ? '#252525' : 'none', color: tab === t ? '#fff' : '#555' }}>
-              {label}
+      {/* HEADER */}
+      <div className="bac-hdr">
+        <button className="bac-btn" style={{ fontSize: 15 }} onClick={() => navigate('/')}>←</button>
+        <span style={{ fontSize: 13, fontWeight: 800, letterSpacing: 0.5, flexShrink: 0 }}>🃏 BACCARAT</span>
+        <div className="bac-tabs">
+          {(['game', 'history', 'fair'] as Tab[]).map(t => (
+            <button key={t} className={`bac-tab${tab === t ? ' on' : ''}`} onClick={() => setTab(t)}>
+              {t === 'game' ? 'Игра' : t === 'history' ? 'История' : 'Честность'}
             </button>
           ))}
         </div>
-
         <div style={{ flex: 1 }} />
-        <button onClick={() => setMuted(m => !m)}
-          style={{ background: 'none', border: 'none', color: '#555', fontSize: 15, cursor: 'pointer', padding: '4px 6px', flexShrink: 0 }}>
-          {muted ? '🔇' : '🔊'}
-        </button>
-        {token && user ? (
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 8, color: '#555', letterSpacing: 0.5 }}>БАЛАНС</div>
-            <div style={{ fontSize: 13, fontWeight: 900, color: '#e4a832' }}>${Number(balance).toFixed(2)}</div>
-          </div>
-        ) : (
-          <button onClick={() => navigate('/login')}
-            style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: '#e4a832', color: '#000', fontSize: 11, fontWeight: 800, cursor: 'pointer', flexShrink: 0 }}>
-            Войти
-          </button>
-        )}
-        <button onClick={toggleFullscreen}
-          style={{ background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 7, color: '#888', fontSize: 14, cursor: 'pointer', padding: '5px 8px', lineHeight: 1, flexShrink: 0 }}>
-          {fullscreen ? '⊡' : '⛶'}
-        </button>
+        <button onClick={() => setMuted(m => !m)} style={{ background: 'none', border: 'none', color: '#555', fontSize: 15, cursor: 'pointer' }}>{muted ? '🔇' : '🔊'}</button>
+        {token && user
+          ? <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: 8, color: '#555', letterSpacing: 0.5 }}>БАЛАНС</div>
+              <div style={{ fontSize: 13, fontWeight: 900, color: '#e4a832' }}>${Number(balance).toFixed(2)}</div>
+            </div>
+          : <button onClick={() => navigate('/login')} style={{ padding: '6px 12px', borderRadius: 7, border: 'none', background: '#e4a832', color: '#000', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>Войти</button>
+        }
       </div>
 
-      {/* ── SESSION DOTS BAR ── */}
-      {tab === 'game' && totalP > 0 && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', background: '#0e0e0e', borderBottom: '1px solid #181818', overflowX: 'auto', flexShrink: 0 }}>
-          <span style={{ fontSize: 8, color: '#444', letterSpacing: 1, flexShrink: 0 }}>СЕССИЯ</span>
-          <span style={{ fontSize: 9, color: winColor.player, flexShrink: 0 }}>P {Math.round(pWins / totalP * 100)}%</span>
-          <span style={{ fontSize: 9, color: winColor.banker, flexShrink: 0 }}>B {Math.round(bWins / totalP * 100)}%</span>
-          <span style={{ fontSize: 9, color: winColor.tie, flexShrink: 0 }}>T {Math.round(ties / totalP * 100)}%</span>
-          <div style={{ display: 'flex', gap: 3, marginLeft: 4 }}>
-            {sessionHistory.slice(0, 25).map((h, i) => (
-              <div key={i} style={{
-                width: 13, height: 13, borderRadius: '50%', flexShrink: 0,
-                background: winColor[h.winner], fontSize: 7,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 900, color: '#000',
-              }}>
-                {h.winner[0].toUpperCase()}
-              </div>
+      {/* SESSION BAR */}
+      {tab === 'game' && sesHist.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 10px', background: '#0e0e0e', borderBottom: '1px solid #181818', flexShrink: 0, overflowX: 'auto' }}>
+          <span style={{ fontSize: 8, color: '#333', letterSpacing: 1, flexShrink: 0 }}>СЕССИЯ</span>
+          <span style={{ fontSize: 9, color: W.player, flexShrink: 0 }}>P {pct(pW)}%</span>
+          <span style={{ fontSize: 9, color: W.banker, flexShrink: 0 }}>B {pct(bW)}%</span>
+          <span style={{ fontSize: 9, color: W.tie, flexShrink: 0 }}>T {pct(tW)}%</span>
+          <div className="bac-dots">
+            {sesHist.slice(0, 25).map((h, i) => (
+              <div key={i} className="bac-dot" style={{ background: W[h.w], color: '#000' }}>{h.w[0].toUpperCase()}</div>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── TAB: GAME ── */}
+      {/* GAME TAB */}
       {tab === 'game' && (
         <>
-          {/* Table area */}
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '8px 14px', gap: 6, minHeight: 0, background: '#0d0d0d' }}>
-
-            {/* Banker zone */}
-            <div style={{
-              width: '100%', maxWidth: 500, padding: '12px 16px',
-              background: '#111', borderRadius: 12,
-              boxShadow: result?.winner === 'banker' ? `0 0 24px ${winColor.banker}55` : 'none',
-              borderLeft: `3px solid ${result?.winner === 'banker' ? winColor.banker : '#222'}`,
-              transition: 'box-shadow 0.4s, border-color 0.4s',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ fontSize: 10, fontWeight: 900, color: winColor.banker, letterSpacing: 2 }}>BANKER</span>
-                <span style={{ fontSize: 28, fontWeight: 900, color: result ? '#fff' : '#1e1e1e', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+          <div className="bac-table">
+            {/* BANKER */}
+            <div className="bac-zone" style={{ boxShadow: result?.winner === 'banker' ? `0 0 28px ${W.banker}55` : 'none', borderLeft: `3px solid ${result?.winner === 'banker' ? W.banker : '#1e1e1e'}`, transition: 'box-shadow .4s, border-color .4s' }}>
+              <div className="bac-zone-hdr">
+                <span className="bac-zone-label" style={{ color: W.banker }}>BANKER</span>
+                <span className="bac-zone-score" style={{ color: result ? '#fff' : '#1e1e1e' }}>
                   {result ? result.bankerScore : '—'}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[0, 1, 2].map(i => {
-                  if (!dealing && !result) return <CardSlot key={i} />
-                  const has = result && i < result.bankerCards.length
-                  const inDeal = dealing && !result
-                  if (!has && !inDeal) return <CardSlot key={i} />
-                  return has
-                    ? <PlayingCard key={i} value={result!.bankerCards[i]} pos={i} visible={visibleCards.banker.includes(i)} />
-                    : <PlayingCard key={i} value={0} pos={i} visible={false} />
-                })}
+              <div className="bac-cards">
+                {result
+                  ? result.bankerCards.map((v, i) => <Card key={i} value={v} pos={i} visible={vis.banker.includes(i)} />)
+                  : dealing
+                    ? [0, 1].map(i => <Card key={i} value={0} pos={i} visible={false} />)
+                    : [0, 1].map(i => <div key={i} className="bac-card-slot" style={{ width: 56, height: 80, borderRadius: 8, border: '1px dashed #1e1e1e' }} />)
+                }
               </div>
             </div>
 
-            {/* Middle result */}
-            <div style={{ height: 48, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {result ? (
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 14, fontWeight: 900, color: winColor[result.winner], letterSpacing: 3 }}>
-                    {winLabel[result.winner]}{result.isNatural ? ' ✨' : ''}
+            {/* MIDDLE */}
+            <div className="bac-mid">
+              {result
+                ? <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 14, fontWeight: 900, color: W[result.winner], letterSpacing: 3 }}>{winLabel[result.winner]}{result.isNatural ? ' ✨' : ''}</div>
+                    <div style={{ fontSize: 18, fontWeight: 900, marginTop: 2, color: result.profit > 0 ? '#22c55e' : result.profit < 0 ? '#ef4444' : '#888' }}>
+                      {result.profit > 0 ? `+$${result.profit.toFixed(2)}` : result.profit < 0 ? `-$${Math.abs(result.profit).toFixed(2)}` : 'PUSH'}
+                    </div>
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 900, color: result.profit > 0 ? '#22c55e' : result.profit < 0 ? '#ef4444' : '#888', marginTop: 3 }}>
-                    {result.profit > 0 ? `+$${result.profit.toFixed(2)}` : result.profit < 0 ? `-$${Math.abs(result.profit).toFixed(2)}` : 'PUSH'}
-                  </div>
-                </div>
-              ) : dealing ? (
-                <div style={{ fontSize: 11, color: '#e4a832', letterSpacing: 2 }}>РАЗДАЧА...</div>
-              ) : (
-                <div style={{ fontSize: 10, color: '#252525', letterSpacing: 2 }}>PLACE YOUR BETS</div>
-              )}
+                : dealing
+                  ? <div style={{ fontSize: 11, color: '#e4a832', letterSpacing: 2 }}>РАЗДАЧА...</div>
+                  : <div style={{ fontSize: 10, color: '#252525', letterSpacing: 2 }}>PLACE YOUR BETS</div>
+              }
             </div>
 
-            {/* Player zone */}
-            <div style={{
-              width: '100%', maxWidth: 500, padding: '12px 16px',
-              background: '#111', borderRadius: 12,
-              boxShadow: result?.winner === 'player' ? `0 0 24px ${winColor.player}55` : 'none',
-              borderLeft: `3px solid ${result?.winner === 'player' ? winColor.player : '#222'}`,
-              transition: 'box-shadow 0.4s, border-color 0.4s',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                <span style={{ fontSize: 10, fontWeight: 900, color: winColor.player, letterSpacing: 2 }}>PLAYER</span>
-                <span style={{ fontSize: 28, fontWeight: 900, color: result ? '#fff' : '#1e1e1e', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>
+            {/* PLAYER */}
+            <div className="bac-zone" style={{ boxShadow: result?.winner === 'player' ? `0 0 28px ${W.player}55` : 'none', borderLeft: `3px solid ${result?.winner === 'player' ? W.player : '#1e1e1e'}`, transition: 'box-shadow .4s, border-color .4s' }}>
+              <div className="bac-zone-hdr">
+                <span className="bac-zone-label" style={{ color: W.player }}>PLAYER</span>
+                <span className="bac-zone-score" style={{ color: result ? '#fff' : '#1e1e1e' }}>
                   {result ? result.playerScore : '—'}
                 </span>
               </div>
-              <div style={{ display: 'flex', gap: 8 }}>
-                {[0, 1, 2].map(i => {
-                  if (!dealing && !result) return <CardSlot key={i} />
-                  const has = result && i < result.playerCards.length
-                  const inDeal = dealing && !result
-                  if (!has && !inDeal) return <CardSlot key={i} />
-                  return has
-                    ? <PlayingCard key={i} value={result!.playerCards[i]} pos={i + 3} visible={visibleCards.player.includes(i)} />
-                    : <PlayingCard key={i} value={0} pos={i + 3} visible={false} />
-                })}
+              <div className="bac-cards">
+                {result
+                  ? result.playerCards.map((v, i) => <Card key={i} value={v} pos={i + 3} visible={vis.player.includes(i)} />)
+                  : dealing
+                    ? [0, 1].map(i => <Card key={i} value={0} pos={i + 3} visible={false} />)
+                    : [0, 1].map(i => <div key={i} style={{ width: 56, height: 80, borderRadius: 8, border: '1px dashed #1e1e1e' }} />)
+                }
               </div>
             </div>
           </div>
 
-          {/* ── BET PANEL ── */}
-          <div style={{ background: '#111', borderTop: '1px solid #1e1e1e', padding: '8px 10px', flexShrink: 0 }}>
-            {/* Bet sides */}
-            <div style={{ display: 'flex', gap: 5, marginBottom: 7 }}>
-              {(['player', 'banker', 'tie'] as BetSide[]).map(side => (
-                <button key={side} onClick={() => setSelectedSide(side)} disabled={dealing}
-                  style={{
-                    flex: side === 'tie' ? '0 0 68px' : 1, borderRadius: 7,
-                    border: `2px solid ${selectedSide === side ? winColor[side] : '#252525'}`,
-                    background: selectedSide === side ? `${winColor[side]}18` : '#161616',
-                    color: selectedSide === side ? winColor[side] : '#555',
-                    cursor: 'pointer', padding: '6px 4px',
-                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2,
-                  }}>
-                  <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1 }}>{side.toUpperCase()}</span>
-                  <span style={{ fontSize: 8, color: '#444' }}>{side === 'player' ? '1:1' : side === 'banker' ? '0.95:1' : '8:1'}</span>
-                  <span style={{ fontSize: 12, fontWeight: 900, color: bets[side] > 0 ? '#e4a832' : '#333' }}>
-                    ${bets[side] > 0 ? bets[side].toFixed(2) : '0'}
+          {/* BET PANEL */}
+          <div className="bac-panel">
+            <div className="bac-sides">
+              {(['player', 'banker', 'tie'] as Side[]).map(s => (
+                <button key={s} className={`bac-side${side === s ? ' on' : ''}`}
+                  style={{ flex: s === 'tie' ? '0 0 70px' : 1, '--c': W[s] } as any}
+                  onClick={() => setSide(s)} disabled={dealing}>
+                  <span style={{ fontSize: 9, fontWeight: 900, letterSpacing: 1 }}>{s.toUpperCase()}</span>
+                  <span style={{ fontSize: 8, color: '#444' }}>{s === 'player' ? '1:1' : s === 'banker' ? '0.95:1' : '8:1'}</span>
+                  <span style={{ fontSize: 13, fontWeight: 900, color: bets[s] > 0 ? '#e4a832' : '#333' }}>
+                    ${bets[s] > 0 ? bets[s].toFixed(2) : '0'}
                   </span>
                 </button>
               ))}
             </div>
-
-            {/* Chips */}
-            <div style={{ display: 'flex', gap: 5, marginBottom: 7, justifyContent: 'center' }}>
-              {CHIPS.map(chip => (
-                <button key={chip.value} onClick={() => addChip(chip.value)} disabled={dealing}
-                  style={{
-                    width: 40, height: 40, borderRadius: '50%', border: `3px solid ${chip.border}`,
-                    background: chip.color, color: chip.text, fontSize: 9, fontWeight: 900, cursor: 'pointer',
-                    flexShrink: 0, transition: 'transform 0.1s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.transform = 'scale(1.12)')}
-                  onMouseLeave={e => (e.currentTarget.style.transform = 'scale(1)')}>
-                  {chip.value >= 1000 ? `${chip.value / 1000}K` : chip.value}
+            <div className="bac-chips">
+              {CHIPS.map(c => (
+                <button key={c.v} className="bac-chip" onClick={() => addChip(c.v)} disabled={dealing}
+                  style={{ width: 40, height: 40, background: c.bg, border: `3px solid ${c.bd}`, color: c.tx }}>
+                  {c.v >= 1000 ? `${c.v / 1000}K` : c.v}
                 </button>
               ))}
             </div>
-
-            {/* Action buttons */}
-            <div style={{ display: 'flex', gap: 5 }}>
-              <button onClick={clearBets} disabled={dealing || totalBet === 0}
-                style={{ flex: 1, padding: '10px', borderRadius: 7, border: '1px solid #252525', background: '#161616', color: '#888', fontSize: 11, fontWeight: 700, cursor: 'pointer', opacity: totalBet === 0 ? 0.4 : 1 }}>
-                CLEAR
-              </button>
-              {lastBets.player + lastBets.banker + lastBets.tie > 0 && (
-                <>
-                  <button onClick={() => rebet()} disabled={dealing}
-                    style={{ flex: 1, padding: '10px', borderRadius: 7, border: '1px solid #252525', background: '#161616', color: '#aaa', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                    REBET
-                  </button>
-                  <button onClick={() => rebet(2)} disabled={dealing}
-                    style={{ flex: 1, padding: '10px', borderRadius: 7, border: '1px solid #252525', background: '#161616', color: '#aaa', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}>
-                    ×2
-                  </button>
-                </>
-              )}
-              <button onClick={deal} disabled={dealing || totalBet === 0 || !token}
-                style={{
-                  flex: 2, padding: '10px', borderRadius: 7, border: 'none',
-                  background: dealing || totalBet === 0 || !token ? '#252525' : 'linear-gradient(135deg,#e4a832,#c88c1a)',
-                  color: dealing || totalBet === 0 || !token ? '#555' : '#000',
-                  fontSize: 13, fontWeight: 900, cursor: 'pointer', letterSpacing: 1,
-                }}>
-                {dealing ? '...' : !token ? 'ВОЙТИ' : totalBet === 0 ? 'DEAL' : `DEAL  $${totalBet.toFixed(2)}`}
+            <div className="bac-actions">
+              <button className="bac-act" onClick={clear} disabled={dealing || total === 0} style={{ opacity: total === 0 ? 0.4 : 1 }}>CLEAR</button>
+              {(lastBets.player + lastBets.banker + lastBets.tie) > 0 && <>
+                <button className="bac-act" onClick={() => rebet()} disabled={dealing}>REBET</button>
+                <button className="bac-act" onClick={() => rebet(2)} disabled={dealing}>×2</button>
+              </>}
+              <button className="bac-deal" onClick={deal} disabled={dealing || total === 0 || !token}
+                style={{ background: dealing || total === 0 || !token ? '#252525' : 'linear-gradient(135deg,#e4a832,#c88c1a)', color: dealing || total === 0 || !token ? '#555' : '#000' }}>
+                {dealing ? '...' : !token ? 'ВОЙТИ' : total === 0 ? 'DEAL' : `DEAL  $${total.toFixed(2)}`}
               </button>
             </div>
           </div>
         </>
       )}
 
-      {/* ── TAB: HISTORY ── */}
+      {/* HISTORY TAB */}
       {tab === 'history' && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '10px' }}>
-          {history.length === 0 ? (
-            <div style={{ textAlign: 'center', color: '#333', fontSize: 13, marginTop: 40 }}>Нет истории</div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              {history.map(h => (
-                <div key={h.id} style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: '#111', borderRadius: 8, padding: '8px 12px',
-                  border: `1px solid ${winColor[h.winner]}22`,
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: `${winColor[h.winner]}22`, border: `2px solid ${winColor[h.winner]}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 9, fontWeight: 900, color: winColor[h.winner] }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: 10 }}>
+          {history.length === 0
+            ? <div style={{ textAlign: 'center', color: '#333', fontSize: 13, marginTop: 40 }}>Нет истории</div>
+            : history.map(h => (
+                <div key={h.id} className="bac-hist-row" style={{ borderLeft: `3px solid ${W[h.winner]}` }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: `${W[h.winner]}22`, border: `2px solid ${W[h.winner]}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 900, color: W[h.winner] }}>
                       {h.winner[0].toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: winColor[h.winner] }}>{h.winner === 'player' ? 'Player' : h.winner === 'banker' ? 'Banker' : 'Tie'}</div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: W[h.winner] }}>{h.winner === 'player' ? 'Player' : h.winner === 'banker' ? 'Banker' : 'Tie'}</div>
                       <div style={{ fontSize: 9, color: '#444' }}>{h.player_score} : {h.banker_score}</div>
                     </div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 12, fontWeight: 900, color: h.profit > 0 ? '#22c55e' : h.profit < 0 ? '#ef4444' : '#888' }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: h.profit > 0 ? '#22c55e' : h.profit < 0 ? '#ef4444' : '#888' }}>
                       {h.profit > 0 ? `+$${Number(h.profit).toFixed(2)}` : h.profit < 0 ? `-$${Math.abs(Number(h.profit)).toFixed(2)}` : 'PUSH'}
                     </div>
                     <div style={{ fontSize: 9, color: '#444' }}>Ставка ${Number(h.total_bet).toFixed(2)}</div>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+              ))
+          }
         </div>
       )}
 
-      {/* ── TAB: FAIR ── */}
+      {/* FAIR TAB */}
       {tab === 'fair' && (
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 12px' }}>
           <div style={{ maxWidth: 460, margin: '0 auto' }}>
-            <div style={{ fontSize: 14, fontWeight: 900, color: '#e4a832', marginBottom: 16 }}>🛡 Provably Fair</div>
-            <div style={{ fontSize: 11, color: '#555', lineHeight: 1.6, marginBottom: 16 }}>
-              Каждый раунд генерируется с помощью HMAC-SHA256. Серверный seed хешируется заранее — вы можете проверить честность после раунда.
+            <div style={{ fontSize: 14, fontWeight: 900, color: '#e4a832', marginBottom: 12 }}>🛡 Provably Fair</div>
+            <div style={{ fontSize: 11, color: '#444', lineHeight: 1.6, marginBottom: 14 }}>
+              Каждый раунд генерируется через HMAC-SHA256. Хеш серверного сида показывается заранее.
             </div>
-            {result ? (
-              <>
-                {[
-                  ['SERVER SEED', result.provablyFair.serverSeed],
-                  ['SERVER SEED HASH (SHA-256)', result.provablyFair.serverSeedHash],
-                  ['CLIENT SEED', result.provablyFair.clientSeed],
-                  ['NONCE', String(result.provablyFair.nonce)],
-                ].map(([label, val]) => (
-                  <div key={label} style={{ marginBottom: 10 }}>
-                    <div style={{ fontSize: 9, color: '#555', letterSpacing: 1, marginBottom: 3 }}>{label}</div>
-                    <div style={{ fontSize: 10, color: '#aaa', wordBreak: 'break-all', background: '#161616', padding: '8px 10px', borderRadius: 7, border: '1px solid #252525' }}>{val}</div>
-                  </div>
-                ))}
-              </>
-            ) : (
-              <div style={{ fontSize: 11, color: '#333', marginBottom: 16 }}>Сыграйте раунд чтобы увидеть данные</div>
-            )}
+            {result && [
+              ['SERVER SEED', result.provablyFair.serverSeed],
+              ['HASH (SHA-256)', result.provablyFair.serverSeedHash],
+              ['CLIENT SEED', result.provablyFair.clientSeed],
+              ['NONCE', String(result.provablyFair.nonce)],
+            ].map(([lbl, val]) => (
+              <div key={lbl} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 9, color: '#555', letterSpacing: 1 }}>{lbl}</div>
+                <div className="bac-fair-field">{val}</div>
+              </div>
+            ))}
+            {!result && <div style={{ fontSize: 11, color: '#333', marginBottom: 14 }}>Сыграйте раунд чтобы увидеть данные</div>}
             <div style={{ marginTop: 8 }}>
-              <div style={{ fontSize: 9, color: '#555', letterSpacing: 1, marginBottom: 4 }}>СВОЙ CLIENT SEED (опционально)</div>
-              <input value={customSeed} onChange={e => setCustomSeed(e.target.value)}
-                placeholder="Введите свой seed..."
+              <div style={{ fontSize: 9, color: '#555', letterSpacing: 1, marginBottom: 4 }}>СВОЙ CLIENT SEED</div>
+              <input value={customSeed} onChange={e => setCustomSeed(e.target.value)} placeholder="Введите свой seed..."
                 style={{ width: '100%', boxSizing: 'border-box', background: '#161616', border: '1px solid #252525', borderRadius: 7, padding: '8px 10px', color: '#fff', fontSize: 11, outline: 'none' }} />
             </div>
           </div>
         </div>
       )}
-
-      <style>{CARD_CSS}</style>
     </div>
   )
 }

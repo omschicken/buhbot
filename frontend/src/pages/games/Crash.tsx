@@ -240,14 +240,30 @@ export default function CrashGame() {
       }
       if (msg.type === 'cashout') {
         setState(prev => ({ ...prev, bets: prev.bets.map(b => b.username === msg.username ? { ...b, cashedOut: true, cashoutAt: msg.multiplier } : b) }))
+        // Фоллбек: обновляем слот и показываем тост по broadcast (для авто и ручного)
+        if (msg.betId && msg.profit) {
+          setSlots(prev => {
+            const updated = prev.map(s =>
+              s.betId === msg.betId && !s.cashedOut
+                ? { ...s, cashedOut: true, profit: msg.profit }
+                : s
+            )
+            const changed = updated.some((s, i) => s !== prev[i])
+            if (changed) {
+              addToast(`Кешаут ${msg.multiplier?.toFixed(2)}x: $${Number(msg.profit).toFixed(2)}`, 'success')
+              getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
+            }
+            return updated
+          })
+        }
       }
       if (msg.type === 'bet_accepted') {
         setSlots(prev => prev.map(s => s.id === msg.slotId ? { ...s, hasBet: true, betId: msg.betId } : s))
         addToast(`Ставка $${msg.amount} принята`, 'success')
       }
       if (msg.type === 'cashout_confirmed') {
+        // cashout broadcast уже обновил слот и показал тост; здесь только синхронизируем баланс
         setSlots(prev => prev.map(s => s.betId === msg.betId ? { ...s, cashedOut: true, profit: msg.profit } : s))
-        addToast(`Вывод: $${Number(msg.profit).toFixed(2)}`, 'success')
         getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
       }
       if (msg.type === 'error') { addToast(msg.message, 'error') }

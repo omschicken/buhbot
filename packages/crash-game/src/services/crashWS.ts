@@ -137,12 +137,9 @@ export function initCrashWS(server: any) {
         if (msg.type === 'cashout') {
           if (!ws.userId) return;
           const betId: string | undefined = msg.betId;
-          const slotId = msg.slotId ?? null;
-          const state = crashEngine.getState();
-          const profit = await crashEngine.cashout(ws.userId, betId);
-
-          await creditWallet(ws.userId, profit, `crash_cashout_${state.roundId}_${betId || ws.userId}`);
-          ws.send(JSON.stringify({ type: 'cashout_confirmed', betId, slotId, profit }));
+          // Кошелёк и уведомление обрабатываются в on('cashout') листенере
+          // чтобы не дублировать кредит между авто и ручным кешаутом
+          await crashEngine.cashout(ws.userId, betId);
         }
 
         if (msg.type === 'ping') ws.send(JSON.stringify({ type: 'pong' }));

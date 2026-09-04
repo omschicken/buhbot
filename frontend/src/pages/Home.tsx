@@ -9,6 +9,7 @@ const GAMES = [
   { id: 'crash', name: 'Crash', provider: 'APEXGAME Originals', category: 'Originals', rtp: 99, hot: true, img: '🚀', internal: true, path: '/games/crash' },
   { id: 'baccarat', name: 'Baccarat', provider: 'APEXGAME Originals', category: 'Originals', rtp: 98.9, hot: true, img: '🎴', internal: true, path: '/games/baccarat' },
   { id: 'plinko', name: 'Plinko', provider: 'APEXGAME Originals', category: 'Originals', rtp: 97, hot: true, img: '🔴', internal: true, path: '/games/plinko' },
+  { id: 'mines', name: 'Mines', provider: 'APEXGAME Originals', category: 'Originals', rtp: 99, hot: true, img: '💎', internal: true, path: '/games/mines' },
   { id: 1, name: 'Aviator', provider: 'Spribe', category: 'Crash', rtp: 97, hot: true, img: '✈️' },
   { id: 2, name: 'Sweet Bonanza', provider: 'Pragmatic', category: 'Slots', rtp: 96.5, hot: true, img: '\u{1F36C}' },
   { id: 3, name: 'Lightning Roulette', provider: 'Evolution', category: 'Live', rtp: 97.3, hot: false, img: '⚡' },

@@ -234,6 +234,7 @@ export default function CrashGame() {
         setCrashed(true); setCrashedAt(msg.crashPoint)
         setState(prev => { const s = { ...prev, status: 'crashed' as GameStatus, multiplier: msg.crashPoint }; stateRef.current = s; return s })
         setTimeout(drawGraph, 50); loadHistory()
+        getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
       }
       if (msg.type === 'bet_placed') {
         setState(prev => ({ ...prev, bets: [...prev.bets.filter(b => b.username !== msg.username), { username: msg.username, amount: msg.amount, cashedOut: false }] }))
@@ -260,6 +261,7 @@ export default function CrashGame() {
       if (msg.type === 'bet_accepted') {
         setSlots(prev => prev.map(s => s.id === msg.slotId ? { ...s, hasBet: true, betId: msg.betId } : s))
         addToast(`Ставка $${msg.amount} принята`, 'success')
+        getBalance().then(r => setBalance(r.data?.balance ?? 0)).catch(() => {})
       }
       if (msg.type === 'cashout_confirmed') {
         // cashout broadcast уже обновил слот и показал тост; здесь только синхронизируем баланс

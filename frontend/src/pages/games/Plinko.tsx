@@ -422,10 +422,13 @@ export default function PlinkoGame() {
     loadHist()
   }, [token])
 
+  const MAX_BALLS = 8
+
   // ── Play one ball (fire-and-forget, multiple can run in parallel) ─────────
   const play = useCallback(async () => {
     const betNum = parseFloat(betRef.current)
     if (!betNum || betNum <= 0) { addToast('Введите сумму ставки', 'error'); return }
+    if (ballsRef.current.length >= MAX_BALLS) return
 
     setActiveBalls(n => n + 1)
     try {
@@ -464,7 +467,7 @@ export default function PlinkoGame() {
 
   function onBetDown() {
     play()
-    holdTimerRef.current = setInterval(play, 400)
+    holdTimerRef.current = setInterval(play, 600)
   }
 
   function onBetUp() { stopHold() }

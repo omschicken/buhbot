@@ -19,8 +19,8 @@ interface GameState {
 
 const cpColor = (x: number) => x < 2 ? '#ef4444' : x < 5 ? '#f59e0b' : '#22c55e'
 
-// Store raw data per point for rescaling
-interface Pt { x: number; y: number; m: number }
+// Храним время и множитель — x и y вычисляются при каждой отрисовке
+interface Pt { t: number; m: number }
 
 export default function CrashGame() {
   const { token, user, balance, setBalance } = useAuthStore()
@@ -78,45 +78,52 @@ export default function CrashGame() {
     const H = canvas.height / dpr
     ctx.clearRect(0, 0, W, H)
 
+    const PAD_L = 8, PAD_B = 8, PAD_T = 16, PAD_R = 24
+    const gW = W - PAD_L - PAD_R
+    const gH = H - PAD_T - PAD_B
+
     // Grid
     ctx.strokeStyle = 'rgba(255,255,255,0.04)'
     ctx.lineWidth = 1
-    for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(0, H * i / 4); ctx.lineTo(W, H * i / 4); ctx.stroke() }
-    for (let i = 1; i <= 6; i++) { ctx.beginPath(); ctx.moveTo(W * i / 6, 0); ctx.lineTo(W * i / 6, H); ctx.stroke() }
+    for (let i = 1; i <= 4; i++) { ctx.beginPath(); ctx.moveTo(PAD_L, PAD_T + gH * i / 4); ctx.lineTo(W - PAD_R, PAD_T + gH * i / 4); ctx.stroke() }
+    for (let i = 1; i <= 6; i++) { ctx.beginPath(); ctx.moveTo(PAD_L + gW * i / 6, PAD_T); ctx.lineTo(PAD_L + gW * i / 6, H - PAD_B); ctx.stroke() }
 
     const pts = ptsRef.current
     if (pts.length < 2) return
     const isCrashed = stateRef.current.status === 'crashed'
     const color = isCrashed ? '#ef4444' : '#00e676'
 
-    // Map actual multiplier to Y: curve starts bottom-left, grows exponentially
+    // Динамический X: текущий момент времени = 75% ширины
+    const maxT = pts[pts.length - 1].t / 0.75
+    // Динамический Y: текущий множитель на ~75% высоты
     const maxM = maxMRef.current
-    const PAD_L = 8, PAD_B = 8, PAD_T = 16
-    const gH = H - PAD_T - PAD_B
-    const toY = (m: number) => PAD_T + gH - ((m - 1) / (maxM - 1)) * gH
-    const mapped = pts.map(p => ({ x: PAD_L + p.x, y: Math.max(PAD_T, toY(p.m)) }))
+    const toX = (t: number) => PAD_L + Math.min(gW, (t / maxT) * gW)
+    const toY = (m: number) => PAD_T + gH - Math.min(gH, ((m - 1) / (maxM - 1)) * gH)
+
+    const mapped = pts.map(p => ({ x: toX(p.t), y: Math.max(PAD_T, toY(p.m)) }))
 
     // Glow line
     ctx.save()
-    ctx.shadowColor = color; ctx.shadowBlur = 16
+    ctx.shadowColor = color; ctx.shadowBlur = 18
     ctx.beginPath(); ctx.moveTo(mapped[0].x, mapped[0].y)
     for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y)
-    ctx.strokeStyle = color; ctx.lineWidth = 2.5; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke()
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.stroke()
     ctx.restore()
 
-    // Fill
+    // Fill под кривой
     ctx.beginPath(); ctx.moveTo(mapped[0].x, mapped[0].y)
     for (let i = 1; i < mapped.length; i++) ctx.lineTo(mapped[i].x, mapped[i].y)
-    ctx.lineTo(mapped[mapped.length - 1].x, H - PAD_B); ctx.lineTo(mapped[0].x, H - PAD_B); ctx.closePath()
-    const g = ctx.createLinearGradient(0, 0, 0, H)
-    g.addColorStop(0, isCrashed ? 'rgba(239,68,68,0.2)' : 'rgba(0,230,118,0.15)')
+    ctx.lineTo(mapped[mapped.length - 1].x, H - PAD_B)
+    ctx.lineTo(mapped[0].x, H - PAD_B); ctx.closePath()
+    const g = ctx.createLinearGradient(0, PAD_T, 0, H - PAD_B)
+    g.addColorStop(0, isCrashed ? 'rgba(239,68,68,0.22)' : 'rgba(0,230,118,0.18)')
     g.addColorStop(1, 'rgba(0,0,0,0)')
     ctx.fillStyle = g; ctx.fill()
 
-    // Tip dot
+    // Точка на конце
     const tip = mapped[mapped.length - 1]
-    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 20
-    ctx.beginPath(); ctx.arc(tip.x, tip.y, 5, 0, Math.PI * 2)
+    ctx.save(); ctx.shadowColor = color; ctx.shadowBlur = 24
+    ctx.beginPath(); ctx.arc(tip.x, tip.y, 6, 0, Math.PI * 2)
     ctx.fillStyle = '#fff'; ctx.fill(); ctx.restore()
   }, [])
 
@@ -131,18 +138,11 @@ export default function CrashGame() {
   }, [])
 
   const updateCanvas = useCallback((multiplier: number, startTime: number) => {
-    const canvas = canvasRef.current
-    if (!canvas) return
-    const dpr = window.devicePixelRatio || 1
-    const W = canvas.width / dpr
     const elapsed = (Date.now() - startTime) / 1000
-    // x: 0..gW proportional to elapsed time (45s = full width)
-    const gW = W - 16
-    const x = Math.min(gW, (elapsed / 45) * gW)
-    const m = Math.max(1, multiplier)
-    // Grow maxM so current point sits at ~75% height
+    const m = Math.max(1.001, multiplier)
+    // Растим maxM чтобы текущая точка была на ~75% высоты
     if (m * 1.4 > maxMRef.current) maxMRef.current = m * 1.4
-    ptsRef.current.push({ x, y: 0, m })
+    ptsRef.current.push({ t: elapsed, m })
     drawGraph()
   }, [drawGraph])
 
@@ -173,10 +173,12 @@ export default function CrashGame() {
   useEffect(() => {
     if (state.status !== 'running' || !state.startTime || ptsRef.current.length > 0) return
     const elapsed = (Date.now() - state.startTime) / 1000
-    for (let t = 0.2; t <= elapsed; t += 0.2) {
-      const m = Math.pow(Math.E, 0.06 * t)
-      updateCanvas(m, state.startTime)
+    for (let t = 0.5; t <= elapsed; t += 0.5) {
+      const m = Math.max(1.001, Math.pow(Math.E, 0.06 * t))
+      if (m * 1.4 > maxMRef.current) maxMRef.current = m * 1.4
+      ptsRef.current.push({ t, m })
     }
+    drawGraph()
   }, [state.status, state.startTime, updateCanvas])
 
   useEffect(() => {

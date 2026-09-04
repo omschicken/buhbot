@@ -47,6 +47,7 @@ export default function CrashGame() {
 
   const wsRef = useRef<WebSocket | null>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const graphContainerRef = useRef<HTMLDivElement>(null)
   const ptsRef = useRef<Pt[]>([])
   const maxMRef = useRef(2)
   const stateRef = useRef<GameState>({
@@ -133,11 +134,14 @@ export default function CrashGame() {
 
   const initCanvas = useCallback(() => {
     const canvas = canvasRef.current
-    if (!canvas) return
+    const container = graphContainerRef.current
+    if (!canvas || !container) return
     const dpr = window.devicePixelRatio || 1
-    const rect = canvas.getBoundingClientRect()
-    canvas.width = rect.width * dpr
-    canvas.height = rect.height * dpr
+    const w = container.clientWidth
+    const h = container.clientHeight
+    if (!w || !h) return
+    canvas.width = w * dpr
+    canvas.height = h * dpr
     canvas.getContext('2d')!.scale(dpr, dpr)
   }, [])
 
@@ -167,10 +171,15 @@ export default function CrashGame() {
   }, [token])
 
   useEffect(() => {
+    const container = graphContainerRef.current
+    if (!container) return
     initCanvas()
-    const onResize = () => { initCanvas(); ptsRef.current = []; maxMRef.current = 2; drawGraph() }
-    window.addEventListener('resize', onResize)
-    return () => window.removeEventListener('resize', onResize)
+    const ro = new ResizeObserver(() => {
+      initCanvas()
+      drawGraph()
+    })
+    ro.observe(container)
+    return () => ro.disconnect()
   }, [initCanvas, drawGraph])
 
   // Если зашли в середине раунда — восстанавливаем историю тиков по startTime
@@ -358,7 +367,7 @@ export default function CrashGame() {
           {/* Main: graph + sidebar */}
           <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
             {/* Graph */}
-            <div style={{ flex: 1, position: 'relative', background: '#0d0d0d', overflow: 'hidden' }}>
+            <div ref={graphContainerRef} style={{ flex: 1, position: 'relative', background: '#0d0d0d', overflow: 'hidden' }}>
               <div style={{ position: 'absolute', top: 8, left: 10, fontSize: 9, color: '#2a2a2a', zIndex: 2, letterSpacing: 0.5 }}>
                 ROUND #{state.roundNumber}
               </div>
@@ -378,7 +387,7 @@ export default function CrashGame() {
                   </div>
                 )}
               </div>
-              <canvas ref={canvasRef} style={{ width: '100%', height: '100%', display: 'block' }} />
+              <canvas ref={canvasRef} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }} />
             </div>
 
             {/* Players sidebar — desktop only */}

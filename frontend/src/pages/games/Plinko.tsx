@@ -232,6 +232,23 @@ const CSS = `
   .pk-result-overlay.show { animation:pk-pop .35s cubic-bezier(.22,.68,0,1.2) forwards; }
 
   .pk-fair-field { background:#161616; border:1px solid #252525; border-radius:7px; padding:8px 10px; font-size:10px; color:#aaa; word-break:break-all; margin-top:3px; }
+
+  @media (max-width:600px) {
+    .pk-body { flex-direction:column; }
+    .pk-panel { width:100%; flex-shrink:0; border-right:none; border-top:1px solid #1e1e1e; padding:8px 10px; gap:6px; overflow-y:visible; }
+    .pk-canvas-wrap { flex:1; min-height:0; }
+    .pk-panel-top { display:flex; gap:6px; align-items:flex-end; }
+    .pk-panel-top > * { flex:1; }
+    .pk-panel-segs { display:flex; gap:6px; }
+    .pk-panel-segs > * { flex:1; }
+    .pk-deal { margin-top:0; padding:11px; font-size:13px; }
+    .pk-hist { display:none; }
+    .pk-stat { display:none; }
+    .pk-label { font-size:8px; margin-bottom:2px; }
+    .pk-input { font-size:13px; padding:7px 8px; }
+    .pk-half { font-size:10px; padding:5px; }
+    .pk-seg-btn { padding:6px 2px; font-size:10px; }
+  }
 `
 
 type Tab = 'game' | 'history' | 'fair'
@@ -517,53 +534,71 @@ export default function PlinkoGame() {
         <div className="pk-body">
           {/* LEFT PANEL */}
           <div className="pk-panel">
-            {/* Bet amount */}
-            <div>
-              <div className="pk-label">СТАВКА</div>
-              <input
-                className="pk-input"
-                type="number" min="0.10" step="0.10"
-                value={bet}
-                onChange={e => setBet(e.target.value)}
-              />
-              <div className="pk-half-row" style={{ marginTop: 4 }}>
-                <button className="pk-half" onClick={() => setBet(v => (+(parseFloat(v) / 2).toFixed(2)).toString())}>½</button>
-                <button className="pk-half" onClick={() => setBet(v => (+(parseFloat(v) * 2).toFixed(2)).toString())}>2×</button>
+            {/* Top row: bet + BET button (side by side on mobile) */}
+            <div className="pk-panel-top">
+              {/* Bet amount */}
+              <div>
+                <div className="pk-label">СТАВКА</div>
+                <input
+                  className="pk-input"
+                  type="number" min="0.10" step="0.10"
+                  value={bet}
+                  onChange={e => setBet(e.target.value)}
+                />
+                <div className="pk-half-row" style={{ marginTop: 4 }}>
+                  <button className="pk-half" onClick={() => setBet(v => (+(parseFloat(v) / 2).toFixed(2)).toString())}>½</button>
+                  <button className="pk-half" onClick={() => setBet(v => (+(parseFloat(v) * 2).toFixed(2)).toString())}>2×</button>
+                </div>
               </div>
+
+              {/* BET button — hold to auto-bet */}
+              <button
+                className="pk-deal"
+                onMouseDown={onBetDown}
+                onMouseUp={onBetUp}
+                onMouseLeave={onBetUp}
+                onTouchStart={e => { e.preventDefault(); onBetDown() }}
+                onTouchEnd={onBetUp}
+              >
+                {activeBalls > 0 ? `● ${activeBalls}` : 'СТАВИТЬ'}
+              </button>
             </div>
 
-            {/* Risk */}
-            <div>
-              <div className="pk-label">РИСК</div>
-              <div className="pk-seg">
-                {(['low', 'medium', 'high'] as Risk[]).map(r => {
-                  const col = r === 'low' ? '#22c55e' : r === 'medium' ? '#e4a832' : '#ef4444'
-                  return (
-                    <button key={r}
-                      className={`pk-seg-btn${risk === r ? ' on' : ''}`}
-                      style={{ '--c': col } as any}
-                      onClick={() => setRisk(r)}
+            {/* Bottom row: risk + rows side by side on mobile */}
+            <div className="pk-panel-segs">
+              {/* Risk */}
+              <div>
+                <div className="pk-label">РИСК</div>
+                <div className="pk-seg">
+                  {(['low', 'medium', 'high'] as Risk[]).map(r => {
+                    const col = r === 'low' ? '#22c55e' : r === 'medium' ? '#e4a832' : '#ef4444'
+                    return (
+                      <button key={r}
+                        className={`pk-seg-btn${risk === r ? ' on' : ''}`}
+                        style={{ '--c': col } as any}
+                        onClick={() => setRisk(r)}
+                      >
+                        {r === 'low' ? 'Low' : r === 'medium' ? 'Mid' : 'High'}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Rows */}
+              <div>
+                <div className="pk-label">СТРОКИ</div>
+                <div className="pk-seg">
+                  {([8, 12, 16] as Rows[]).map(n => (
+                    <button key={n}
+                      className={`pk-seg-btn${rows === n ? ' on' : ''}`}
+                      style={{ '--c': '#3b82f6' } as any}
+                      onClick={() => setRows(n)}
                     >
-                      {r === 'low' ? 'Low' : r === 'medium' ? 'Mid' : 'High'}
+                      {n}
                     </button>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Rows */}
-            <div>
-              <div className="pk-label">СТРОКИ</div>
-              <div className="pk-seg">
-                {([8, 12, 16] as Rows[]).map(n => (
-                  <button key={n}
-                    className={`pk-seg-btn${rows === n ? ' on' : ''}`}
-                    style={{ '--c': '#3b82f6' } as any}
-                    onClick={() => setRows(n)}
-                  >
-                    {n}
-                  </button>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
 
@@ -596,18 +631,6 @@ export default function PlinkoGame() {
                 </div>
               </div>
             )}
-
-            {/* BET button — hold to auto-bet */}
-            <button
-              className="pk-deal"
-              onMouseDown={onBetDown}
-              onMouseUp={onBetUp}
-              onMouseLeave={onBetUp}
-              onTouchStart={e => { e.preventDefault(); onBetDown() }}
-              onTouchEnd={onBetUp}
-            >
-              {activeBalls > 0 ? `● ${activeBalls} шар${activeBalls > 1 ? 'a' : ''}` : 'СТАВИТЬ'}
-            </button>
           </div>
 
           {/* CANVAS */}

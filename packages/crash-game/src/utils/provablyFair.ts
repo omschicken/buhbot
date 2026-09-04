@@ -5,9 +5,12 @@ export function generateCrashPoint(serverSeed: string, clientSeed: string): numb
   hmac.update(clientSeed);
   const hash = hmac.digest('hex');
 
+  // 1-in-33 chance of instant crash (house protection)
+  if (parseInt(hash.slice(0, 8), 16) % 33 === 0) return 1.00;
+
   const h = parseInt(hash.slice(0, 8), 16);
-  const houseEdge = 0.01;
-  const result = Math.floor((1 / (1 - (1 - houseEdge) * (h / Math.pow(2, 32)))) * 100) / 100;
+  const e = Math.pow(2, 32);
+  const result = Math.floor((100 * e - h) / (e - h)) / 100;
 
   return Math.max(1.00, result);
 }

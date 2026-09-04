@@ -1,7 +1,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { pool } from '../db/pool';
 import { crashEngine } from '../services/crashEngine';
-import { verifyCrashPoint } from '../utils/provablyFair';
+import { verifyCrashPoint, generateCrashPoint, generateServerSeed, generateClientSeed } from '../utils/provablyFair';
 import jwt from 'jsonwebtoken';
 
 const router = Router();
@@ -73,6 +73,32 @@ router.get('/verify/:roundId', async (req, res, next) => {
       }
     });
   } catch (e) { next(e); }
+});
+
+// GET /crash/test-distribution?count=10000
+router.get('/test-distribution', (req, res) => {
+  const count = Math.min(100000, Math.max(100, parseInt(req.query.count as string) || 10000));
+  const points: number[] = [];
+  for (let i = 0; i < count; i++) {
+    points.push(generateCrashPoint(generateServerSeed(), generateClientSeed()));
+  }
+  const below2 = points.filter(p => p < 2).length;
+  const b2to4 = points.filter(p => p >= 2 && p < 4).length;
+  const b4to10 = points.filter(p => p >= 4 && p < 10).length;
+  const b10to50 = points.filter(p => p >= 10 && p < 50).length;
+  const above50 = points.filter(p => p >= 50).length;
+  const avg = points.reduce((a, b) => a + b, 0) / count;
+  const pct = (n: number) => (n / count * 100).toFixed(1) + '%';
+  res.json({
+    count,
+    below2x: pct(below2),
+    '2x_to_4x': pct(b2to4),
+    '4x_to_10x': pct(b4to10),
+    '10x_to_50x': pct(b10to50),
+    above50x: pct(above50),
+    average: avg.toFixed(2) + 'x',
+    houseEdge: (1 - 1 / avg * 0.99).toFixed(2) + '%',
+  });
 });
 
 export default router;

@@ -17,6 +17,7 @@ import Bonuses from './pages/Bonuses'
 import Affiliate from './pages/Affiliate'
 import CrashGame from './pages/games/Crash'
 import BaccaratGame from './pages/games/Baccarat'
+import PlinkoGame from './pages/games/Plinko'
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminPlayers from './pages/admin/Players'
 import AdminPlayerDetail from './pages/admin/PlayerDetail'
@@ -73,6 +74,7 @@ export default function App() {
           </Route>
           <Route path="/games/crash" element={<CrashGame />} />
           <Route path="/games/baccarat" element={<BaccaratGame />} />
+          <Route path="/games/plinko" element={<PlinkoGame />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/game/:id" element={<ProtectedRoute><Game /></ProtectedRoute>} />

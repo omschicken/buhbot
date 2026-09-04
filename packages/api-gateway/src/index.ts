@@ -18,6 +18,7 @@ const BONUS_URL = process.env.BONUS_SERVICE_URL || 'http://bonus-engine.railway.
 const AFFILIATE_URL = process.env.AFFILIATE_SERVICE_URL || 'http://affiliate-service.railway.internal:3006';
 const CRASH_URL = process.env.CRASH_SERVICE_URL || 'http://crash-game.railway.internal:3008';
 const BACCARAT_URL = process.env.BACCARAT_SERVICE_URL || 'http://baccarat-game.railway.internal:3009';
+const PLINKO_URL = process.env.PLINKO_SERVICE_URL || 'http://plinko-game.railway.internal:3010';
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: '*', credentials: false }));
@@ -166,6 +167,9 @@ app.use(proxy(CRASH_URL, '/api/crash', { '^/api/crash': '/crash' }));
 
 // Baccarat game
 app.use(proxy(BACCARAT_URL, '/api/baccarat', { '^/api/baccarat': '/baccarat' }));
+
+// Plinko game
+app.use(proxy(PLINKO_URL, '/api/plinko', { '^/api/plinko': '/plinko' }));
 
 // Combined admin stats
 app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {

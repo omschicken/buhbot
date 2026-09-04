@@ -312,7 +312,7 @@ export default function MinesGame() {
   useEffect(() => {
     refreshBalance()
     if (!token) return
-    api.get('/api/mines/active').then(r => {
+    api.get('/mines/active').then(r => {
       const d = r.data?.data
       if (d) {
         setRound(d)
@@ -332,7 +332,7 @@ export default function MinesGame() {
     if (isNaN(bet) || bet <= 0) { addToast('Invalid bet amount', 'error'); return }
     setLoading(true)
     try {
-      const r = await api.post('/api/mines/start', { betAmount: bet, minesCount })
+      const r = await api.post('/mines/start', { betAmount: bet, minesCount })
       const d = r.data.data
       setRound(d)
       setPhase('playing')
@@ -347,7 +347,7 @@ export default function MinesGame() {
     if (phase !== 'playing' || !round || cells[idx] !== 'hidden' || loading) return
     setLoading(true)
     try {
-      const r = await api.post('/api/mines/open', { roundId: round.roundId, cellIndex: idx })
+      const r = await api.post('/mines/open', { roundId: round.roundId, cellIndex: idx })
       const d = r.data.data
 
       if (d.isMine) {
@@ -406,7 +406,7 @@ export default function MinesGame() {
     if (!round || phase !== 'playing' || round.openedCells.length === 0 || loading) return
     setLoading(true)
     try {
-      const r = await api.post('/api/mines/cashout', { roundId: round.roundId })
+      const r = await api.post('/mines/cashout', { roundId: round.roundId })
       const d = r.data.data
       const next: CellState[] = [...cells]
       for (const mp of d.minePositions) {

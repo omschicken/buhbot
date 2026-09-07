@@ -65,6 +65,7 @@ export default function RugPull() {
 
   // Canvas
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  const canvasContainerRef = useRef<HTMLDivElement>(null)
   const pointsRef = useRef<{ x: number; y: number }[]>([])
   const animFrameRef = useRef<number>(0)
   const statusRef = useRef<GameStatus>('waiting')
@@ -74,6 +75,25 @@ export default function RugPull() {
   // WS
   const wsRef = useRef<WebSocket | null>(null)
   const countdownRef = useRef<NodeJS.Timeout | null>(null)
+
+  // Resize canvas to match container
+  useEffect(() => {
+    const resize = () => {
+      const canvas = canvasRef.current
+      const container = canvasContainerRef.current
+      if (!canvas || !container) return
+      const W = container.clientWidth
+      const H = Math.min(Math.max(W * 0.45, 240), 360)
+      if (canvas.width !== W || canvas.height !== H) {
+        canvas.width = W
+        canvas.height = H
+        pointsRef.current = [] // reset points on resize
+      }
+    }
+    resize()
+    window.addEventListener('resize', resize)
+    return () => window.removeEventListener('resize', resize)
+  }, [])
 
   const drawCanvas = useCallback(() => {
     const canvas = canvasRef.current
@@ -92,10 +112,9 @@ export default function RugPull() {
     for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke() }
 
     const pts = pointsRef.current
+    const fontSize = Math.max(24, Math.min(48, W / 14))
     if (pts.length < 2) {
-      // Multiplier text only
-      ctx.fillStyle = '#ff8c00'
-      ctx.font = 'bold 56px monospace'
+      ctx.font = `bold ${fontSize}px monospace`
       ctx.textAlign = 'center'
       ctx.textBaseline = 'middle'
       const label = statusRef.current === 'betting'
@@ -131,11 +150,11 @@ export default function RugPull() {
 
     // Multiplier label
     ctx.fillStyle = pulledRef.current ? '#ff2222' : '#ff8c00'
-    ctx.font = 'bold 48px monospace'
+    ctx.font = `bold ${fontSize}px monospace`
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
     ctx.shadowColor = pulledRef.current ? '#ff2222' : '#ff8c00'
-    ctx.shadowBlur = 20
+    ctx.shadowBlur = 16
     ctx.fillText(
       pulledRef.current ? `🪤 ${multiplierRef.current.toFixed(2)}x` : `${multiplierRef.current.toFixed(2)}x`,
       W / 2, H / 2
@@ -377,9 +396,9 @@ export default function RugPull() {
           </div>
 
           {/* Center — Canvas */}
-          <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
-            <canvas ref={canvasRef} width={600} height={340}
-              style={{ width: '100%', height: 340, display: 'block', background: '#0a0a0a' }} />
+          <div ref={canvasContainerRef} style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+            <canvas ref={canvasRef}
+              style={{ display: 'block', background: '#0a0a0a', width: '100%' }} />
 
             {/* Pool overlay */}
             <div style={{ position: 'absolute', top: 12, left: 12, background: 'rgba(0,0,0,0.7)',

@@ -1,15 +1,9 @@
 FROM node:20-alpine
 WORKDIR /app
-
-COPY packages/shared /app/packages/shared
-COPY packages/rugpull-game /app/packages/rugpull-game
-
-WORKDIR /app/packages/shared
-RUN npm install --production=false && npm run build
-
-WORKDIR /app/packages/rugpull-game
+COPY package*.json ./
 RUN npm install --production=false
+COPY . .
 RUN npm run build
-
+RUN npm prune --omit=dev
 EXPOSE 3012
 CMD ["npm", "start"]

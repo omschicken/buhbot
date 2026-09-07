@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/useAuthStore'
-import { useUIStore } from '../../store/useUIStore'
 
 const WS_URL = import.meta.env.VITE_WS_URL ||
   (import.meta.env.VITE_API_URL || 'https://api-gateaway-production-cd24.up.railway.app')
@@ -34,8 +33,7 @@ interface BonusWinner {
 
 export default function RugPull() {
   const navigate = useNavigate()
-  const { token, user } = useAuthStore()
-  const { setTab } = useUIStore()
+  const { token, user, balance } = useAuthStore()
   const [tab, setLocalTab] = useState<'game' | 'fair'>('game')
 
   // Game state
@@ -60,7 +58,6 @@ export default function RugPull() {
   const [betInput, setBetInput] = useState('10')
   const [autoCashoutInput, setAutoCashoutInput] = useState('')
   const [autoCashoutEnabled, setAutoCashoutEnabled] = useState(false)
-  const [balance, setBalance] = useState(user?.balance ?? 0)
   const [showHelp, setShowHelp] = useState(false)
 
   // History
@@ -346,7 +343,7 @@ export default function RugPull() {
     <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#fff', fontFamily: 'monospace' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', padding: '12px 16px', borderBottom: '1px solid #1a1a1a', gap: 12 }}>
-        <button onClick={() => { setTab('home'); navigate('/') }}
+        <button onClick={() => { navigate('/') }}
           style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}>←</button>
         <span style={{ fontSize: 18, fontWeight: 700, color: '#ff8c00' }}>🪤 Rug Pull</span>
         <span style={{ fontSize: 12, color: '#555', marginLeft: 4 }}>PvP · Round #{roundNumber}</span>

@@ -61,18 +61,15 @@ export function initRugPullWS(server: any) {
             return;
           }
 
-          const res = await fetch(`${process.env.WALLET_SERVICE_URL}/wallet/debit-internal`, {
+          const res = await fetch(`${process.env.WALLET_SERVICE_URL}/wallet/internal/debit`, {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'X-Internal-Secret': process.env.INTERNAL_SECRET || ''
-            },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: ws.userId,
               amount,
               type: 'bet',
-              referenceId: `rugpull_bet_${Date.now()}`,
-              idempotencyKey: `rugpull_bet_${ws.userId}_${rugPullEngine.getState().roundId}`
+              game: 'rugpull',
+              referenceId: `rugpull_${rugPullEngine.getState().roundId}_${ws.userId}`
             })
           });
 

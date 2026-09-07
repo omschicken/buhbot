@@ -347,22 +347,11 @@ export class RugPullEngine extends EventEmitter {
   }
 
   private async creditWallet(userId: string, amount: number, key: string) {
-    try {
-      await fetch(`${process.env.WALLET_SERVICE_URL}/wallet/credit-internal`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Internal-Secret': process.env.INTERNAL_SECRET || ''
-        },
-        body: JSON.stringify({
-          userId, amount, type: 'win',
-          referenceId: key,
-          idempotencyKey: key
-        })
-      });
-    } catch (err) {
-      console.error('creditWallet error:', err);
-    }
+    await fetch(`${process.env.WALLET_SERVICE_URL}/wallet/internal/credit`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, amount, type: 'win', game: 'rugpull', referenceId: key })
+    }).catch(console.error);
   }
 
   getState() {

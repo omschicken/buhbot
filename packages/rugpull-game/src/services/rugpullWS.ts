@@ -38,11 +38,8 @@ export function initRugPullWS(server: any) {
     if (token) {
       try {
         const payload = jwt.verify(token, process.env.JWT_SECRET || 'supersecret') as any;
-        ws.userId = payload.userId;
-        const { rows } = await pool.query(
-          'SELECT username FROM users WHERE id=$1', [payload.userId]
-        );
-        ws.username = rows[0]?.username || 'Player';
+        ws.userId = payload.userId || payload.id;
+        ws.username = payload.username || 'Player';
       } catch {}
     }
 

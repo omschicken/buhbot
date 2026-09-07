@@ -20,6 +20,7 @@ const CRASH_URL = process.env.CRASH_SERVICE_URL || 'http://crash-game.railway.in
 const BACCARAT_URL = process.env.BACCARAT_SERVICE_URL || 'http://baccarat-game.railway.internal:3009';
 const PLINKO_URL = process.env.PLINKO_SERVICE_URL || 'http://plinko-game.railway.internal:3010';
 const MINES_URL = process.env.MINES_SERVICE_URL || 'http://mines-game.railway.internal:3011';
+const RUGPULL_URL = process.env.RUGPULL_SERVICE_URL || 'http://rugpull-game.railway.internal:3012';
 
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({ origin: '*', credentials: false }));
@@ -174,6 +175,9 @@ app.use(proxy(PLINKO_URL, '/api/plinko', { '^/api/plinko': '/plinko' }));
 
 // Mines game
 app.use(proxy(MINES_URL, '/api/mines', { '^/api/mines': '/mines' }));
+
+// Rug Pull game
+app.use(proxy(RUGPULL_URL, '/api/rugpull', { '^/api/rugpull': '/rugpull' }));
 
 // Combined admin stats
 app.get('/api/admin/stats', verifyToken, adminOnly, async (req, res) => {

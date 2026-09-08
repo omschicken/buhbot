@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { plinkoService } from '../services/plinko.service';
+import { verifyEV, MULTIPLIERS } from '../utils/multipliers';
 
 const router = Router();
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret123casino2024';
@@ -93,6 +94,22 @@ router.get('/verify/:roundId', async (req: Request, res: Response, next: NextFun
     const data = await plinkoService.verify(req.params.roundId);
     res.json({ success: true, data });
   } catch (e) { next(e); }
+});
+
+// GET /plinko/verify-ev
+router.get('/verify-ev', (_req: Request, res: Response) => {
+  const results: Record<string, Record<number, { ev: number; houseEdge: string; ok: boolean }>> = {};
+  let anyBug = false;
+  for (const risk of Object.keys(MULTIPLIERS)) {
+    results[risk] = {};
+    for (const rows of Object.keys(MULTIPLIERS[risk]).map(Number)) {
+      const ev = verifyEV(risk, rows);
+      const ok = ev <= 1.0;
+      if (!ok) anyBug = true;
+      results[risk][rows] = { ev: parseFloat(ev.toFixed(4)), houseEdge: `${((1 - ev) * 100).toFixed(2)}%`, ok };
+    }
+  }
+  res.json({ success: true, casinoBug: anyBug, data: results });
 });
 
 // GET /plinko/config

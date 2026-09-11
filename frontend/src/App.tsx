@@ -19,6 +19,7 @@ import CrashGame from './pages/games/Crash'
 import BaccaratGame from './pages/games/Baccarat'
 import PlinkoGame from './pages/games/Plinko'
 import MinesGame from './pages/games/Mines'
+import RugPullGame from './pages/games/RugPull'
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminPlayers from './pages/admin/Players'
 import AdminPlayerDetail from './pages/admin/PlayerDetail'
@@ -77,6 +78,7 @@ export default function App() {
           <Route path="/games/baccarat" element={<BaccaratGame />} />
           <Route path="/games/plinko" element={<PlinkoGame />} />
           <Route path="/games/mines" element={<MinesGame />} />
+          <Route path="/games/rugpull" element={<RugPullGame />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/game/:id" element={<ProtectedRoute><Game /></ProtectedRoute>} />

@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
 import { useTranslation } from 'react-i18next'
 import { useUIStore } from '../store/useUIStore'
 import { getBonuses } from '../api/bonus'
@@ -22,7 +21,7 @@ interface Bonus {
   status?: string
 }
 
-const COLORS = ['#e4a832', '#22c55e', '#0ea5e9', '#a855f7']
+const COLORS = ['#3b82f6', '#22c55e', '#0ea5e9', '#a855f7']
 
 export default function Bonuses() {
   const { t } = useTranslation()
@@ -39,26 +38,45 @@ export default function Bonuses() {
   }, [])
 
   return (
-    <div>
+    <div style={{ padding: 24, paddingBottom: 80 }}>
+      {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-        <div style={{ width: 3, height: 24, background: '#e4a832', borderRadius: 2 }} />
-        <span style={{ fontSize: 14, fontWeight: 700 }}>{t('bonuses.myBonuses')}</span>
+        <div style={{ width: 3, height: 20, background: 'var(--blue)', borderRadius: 2 }} />
+        <span style={{ fontSize: 16, fontWeight: 700 }}>{t('bonuses.myBonuses')}</span>
       </div>
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 20, background: '#1a1a1a', border: '1px solid #222', borderRadius: 10, padding: 14 }}>
-        <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="PROMO CODE"
-          style={{ flex: 1, background: '#111', border: '1px solid #2a2a2a', borderRadius: 7, padding: '8px 12px', color: '#fff', fontSize: 12, outline: 'none', fontFamily: 'monospace', letterSpacing: 1 }}
-          onFocus={(e) => (e.target.style.borderColor = 'rgba(228,168,50,0.5)')}
-          onBlur={(e) => (e.target.style.borderColor = '#2a2a2a')} />
-        <button onClick={() => { if (code) addToast('Promo code applied!', 'success') }} style={{ background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, padding: '8px 18px', borderRadius: 7, border: 'none' }}>{t('common.confirm')}</button>
+      {/* Promo code */}
+      <div style={{
+        display: 'flex', gap: 8, marginBottom: 24,
+        background: 'var(--surface)', border: '1px solid var(--border)',
+        borderRadius: 'var(--r-lg)', padding: 14,
+      }}>
+        <input
+          value={code} onChange={(e) => setCode(e.target.value.toUpperCase())}
+          placeholder="PROMO CODE"
+          className="input"
+          style={{ flex: 1, fontFamily: 'monospace', letterSpacing: 1 }}
+        />
+        <button
+          onClick={() => { if (code) addToast('Promo code applied!', 'success') }}
+          className="btn btn-primary btn-sm"
+        >
+          {t('common.confirm')}
+        </button>
       </div>
 
       {loading ? (
-        <div style={{ color: '#444', fontSize: 13, padding: 20 }}>{t('common.loading')}</div>
+        <div style={{ color: 'var(--text3)', fontSize: 13, padding: 20 }}>{t('common.loading')}</div>
       ) : bonuses.length === 0 ? (
-        <div style={{ color: '#444', fontSize: 13, padding: 20, textAlign: 'center' }}>{t('bonuses.noBonus')}</div>
+        <div style={{
+          color: 'var(--text3)', fontSize: 13, padding: '48px 20px',
+          textAlign: 'center', background: 'var(--surface)',
+          border: '1px solid var(--border)', borderRadius: 'var(--r-lg)',
+        }}>
+          {t('bonuses.noBonus')}
+        </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 20 }}>
+        <div className="bonuses-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {bonuses.map((b, i) => {
             const done = b.wageredAmount ?? b.done ?? 0
             const total = b.wageringTarget ?? b.total ?? 1
@@ -69,26 +87,41 @@ export default function Bonuses() {
             const wagering = b.wagering ?? b.wageringRequirement ?? 0
             const expires = b.expiresAt ? new Date(b.expiresAt).toLocaleDateString() : b.expires || ''
             return (
-              <motion.div key={b.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.08 }}
-                style={{ background: '#1a1a1a', border: `1px solid ${color}20`, borderRadius: 10, padding: 16 }}>
+              <div key={b.id} style={{
+                background: 'var(--surface)', border: `1px solid ${color}25`,
+                borderRadius: 'var(--r-lg)', padding: 16,
+                animation: `fade-in 0.2s ease ${i * 0.06}s both`,
+              }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>{label}</span>
-                  <span style={{ fontSize: 9, color, background: color + '15', padding: '2px 7px', borderRadius: 20 }}>{b.status || 'Active'}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)' }}>{label}</span>
+                  <span style={{ fontSize: 9, color, background: color + '18', padding: '2px 7px', borderRadius: 20, fontWeight: 700 }}>
+                    {b.status || 'Active'}
+                  </span>
                 </div>
                 <div style={{ fontSize: 22, fontWeight: 900, color, marginBottom: 2 }}>{b.amount} {currency}</div>
-                <div style={{ fontSize: 9, color: '#444', marginBottom: 10 }}>×{wagering} wagering{expires ? ` · expires ${expires}` : ''}</div>
-                <div style={{ background: '#111', borderRadius: 4, height: 5, marginBottom: 5 }}>
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${pct}%` }} transition={{ duration: 0.8, delay: 0.3 + i * 0.1 }}
-                    style={{ height: '100%', background: color, borderRadius: 4 }} />
+                <div style={{ fontSize: 9, color: 'var(--text3)', marginBottom: 10 }}>
+                  ×{wagering} wagering{expires ? ` · expires ${expires}` : ''}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: '#444' }}>
-                  <span>${done.toLocaleString()}</span><span>{pct}% · ${total.toLocaleString()}</span>
+                <div style={{ background: 'var(--bg)', borderRadius: 4, height: 5, marginBottom: 5 }}>
+                  <div style={{ height: '100%', background: color, borderRadius: 4, width: `${pct}%`, transition: 'width 0.8s ease' }} />
                 </div>
-              </motion.div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--text3)' }}>
+                  <span>${done.toLocaleString()}</span>
+                  <span>{pct}% · ${total.toLocaleString()}</span>
+                </div>
+              </div>
             )
           })}
         </div>
       )}
+      <style>{`
+        @media (max-width: 768px) {
+          .bonuses-grid { grid-template-columns: 1fr !important; }
+        }
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .bonuses-grid { grid-template-columns: repeat(2, 1fr) !important; }
+        }
+      `}</style>
     </div>
   )
 }

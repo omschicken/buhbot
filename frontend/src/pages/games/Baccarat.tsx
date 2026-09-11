@@ -150,6 +150,7 @@ export default function BaccaratGame() {
   const { addToast } = useUIStore()
 
   const [tab, setTab] = useState<Tab>('game')
+  const [showHelp, setShowHelp] = useState(false)
   const [bets, setBets] = useState({ player: 0, banker: 0, tie: 0 })
   const [lastBets, setLastBets] = useState({ player: 0, banker: 0, tie: 0 })
   const [side, setSide] = useState<Side>('player')
@@ -226,6 +227,25 @@ export default function BaccaratGame() {
       <style>{CSS}</style>
       <ToastContainer />
 
+      {/* HELP MODAL */}
+      {showHelp && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ background: '#1a1a1a', border: '1px solid #333', borderRadius: 14, padding: 24, maxWidth: 360, width: '90%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowHelp(false)} style={{ position: 'absolute', top: 12, right: 12, background: 'none', border: 'none', color: '#666', fontSize: 20, cursor: 'pointer' }}>✕</button>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#e4a832', marginBottom: 12 }}>🎴 Baccarat</div>
+            <div style={{ fontSize: 12, color: '#888', letterSpacing: 1, marginBottom: 4, marginTop: 12 }}>КАК ИГРАТЬ</div>
+            <div style={{ fontSize: 13, color: '#bbb', lineHeight: 1.6 }}>
+              • Поставь на PLAYER, BANKER или TIE<br />
+              • Player и Banker получают по 2 карты, иногда 3-ю по правилам<br />
+              • Побеждает сторона ближе к 9 очкам<br />
+              • Туз = 1, карты 2-9 = номинал, 10/J/Q/K = 0<br />
+              • PLAYER выигрыш: 1:1 | BANKER: 0.95:1 | TIE: 8:1<br />
+              • При равенстве ставки на Player/Banker возвращаются
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="bac-hdr">
         <button className="bac-btn" style={{ fontSize: 15 }} onClick={() => navigate('/')}>←</button>
@@ -238,6 +258,7 @@ export default function BaccaratGame() {
           ))}
         </div>
         <div style={{ flex: 1 }} />
+        <button onClick={() => setShowHelp(true)} className="bac-btn" style={{ fontSize: 14 }}>?</button>
         <button onClick={() => setMuted(m => !m)} style={{ background: 'none', border: 'none', color: '#555', fontSize: 15, cursor: 'pointer' }}>{muted ? '🔇' : '🔊'}</button>
         {token && user
           ? <div style={{ textAlign: 'right' }}>

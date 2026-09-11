@@ -29,9 +29,9 @@ export function generateShoe(serverSeed: string, clientSeed: string, nonce: numb
 }
 
 export function cardValue(card: number): number {
-  if (card >= 10) return 0;
-  if (card === 0) return 1;
-  return card;
+  if (card === 0) return 1;   // Ace
+  if (card >= 9) return 0;    // 10, J, Q, K
+  return card + 1;            // 2-9
 }
 
 export function handScore(cards: number[]): number {

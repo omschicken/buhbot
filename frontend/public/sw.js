@@ -1,4 +1,4 @@
-const CACHE = 'apexgame-v1';
+const CACHE = 'apexgame-v3';
 const ASSETS = ['/', '/index.html', '/manifest.json'];
 
 self.addEventListener('install', (e) => {

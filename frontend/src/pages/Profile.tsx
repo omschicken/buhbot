@@ -40,18 +40,18 @@ export default function Profile() {
           {/* Profile card */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, textAlign: 'center' }}>
-              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--gold-dim)', border: '3px solid var(--gold)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: 'var(--gold)', margin: '0 auto 12px' }}>
+              <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--blue-dim)', border: '3px solid var(--blue-bright)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, fontWeight: 900, color: 'var(--blue-bright)', margin: '0 auto 12px' }}>
                 {user?.username?.[0]?.toUpperCase() || 'U'}
               </div>
               <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{user?.username || 'Player'}</div>
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>{user?.email}</div>
-              <div style={{ marginTop: 12, padding: '6px 14px', background: 'var(--gold-dim)', borderRadius: 20, display: 'inline-block', fontSize: 11, color: 'var(--gold)', fontWeight: 700 }}>
+              <div style={{ marginTop: 12, padding: '6px 14px', background: 'var(--blue-dim)', borderRadius: 20, display: 'inline-block', fontSize: 11, color: 'var(--blue-bright)', fontWeight: 700 }}>
                 {vip ? vip.name || `VIP Level ${vip.level}` : 'VIP Level 0'}
               </div>
               {vip && (
                 <div style={{ marginTop: 12 }}>
                   <div style={{ background: '#111', borderRadius: 4, height: 5, marginBottom: 4 }}>
-                    <div style={{ height: '100%', background: '#e4a832', borderRadius: 4, width: `${vipPct}%`, transition: 'width 0.5s' }} />
+                    <div style={{ height: '100%', background: 'var(--blue-bright)', borderRadius: 4, width: `${vipPct}%`, transition: 'width 0.5s' }} />
                   </div>
                   <div style={{ fontSize: 10, color: '#444' }}>{(vip.xp || 0).toLocaleString()} / {(vip.nextXp || 0).toLocaleString()} XP</div>
                 </div>
@@ -59,7 +59,7 @@ export default function Profile() {
             </div>
 
             {[
-              ['Balance', `$${safeBalance.toFixed(2)}`, 'var(--gold)'],
+              ['Balance', `$${safeBalance.toFixed(2)}`, 'var(--blue-bright)'],
               ['KYC', kyc ? `Level ${kyc.level} · ${kyc.status}` : 'Not Verified', kyc?.status === 'approved' ? 'var(--green)' : 'var(--text3)'],
               ['Role', user?.role || 'user', 'var(--text)'],
             ].map(([label, value, color]) => (
@@ -82,7 +82,7 @@ export default function Profile() {
                 </div>
               ))}
               <button onClick={() => addToast('Contact support to update profile', 'success')}
-                style={{ alignSelf: 'flex-start', padding: '10px 24px', borderRadius: 8, background: 'var(--gold)', color: '#000', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>
+                style={{ alignSelf: 'flex-start', padding: '10px 24px', borderRadius: 8, background: 'var(--blue-grad)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer' }}>
                 Save Changes
               </button>
             </div>

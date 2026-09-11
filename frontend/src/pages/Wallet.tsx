@@ -5,7 +5,7 @@ import { useAuthStore } from '../store/useAuthStore'
 import { useUIStore } from '../store/useUIStore'
 import { getBalance, getTransactions, withdraw, getDepositAddress, getDepositHistory } from '../api/wallet'
 
-const txColor: Record<string, string> = { deposit: '#22c55e', withdrawal: '#ef4444', bet: '#555', win: '#e4a832' }
+const txColor: Record<string, string> = { deposit: '#22c55e', withdrawal: '#ef4444', bet: '#3d4b63', win: '#3b82f6' }
 
 const COINS = [
   { symbol: 'BTC', name: 'Bitcoin', icon: '₿', color: '#f7931a' },
@@ -118,8 +118,9 @@ export default function Wallet() {
         {TABS.map((t2) => (
           <button key={t2.id} onClick={() => setTab(t2.id)}
             style={{ flex: 1, padding: '8px 12px', borderRadius: 7, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
-              background: tab === t2.id ? '#e4a832' : 'transparent',
-              color: tab === t2.id ? '#000' : 'var(--text3)' }}>
+              background: tab === t2.id ? 'var(--blue-dim)' : 'transparent',
+              color: tab === t2.id ? 'var(--blue-bright)' : 'var(--text3)',
+              borderBottom: tab === t2.id ? '2px solid var(--blue)' : '2px solid transparent' }}>
             {t2.label}
           </button>
         ))}
@@ -130,10 +131,10 @@ export default function Wallet() {
           <motion.div key="overview" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: 28, marginBottom: 16, textAlign: 'center' }}>
               <div style={{ fontSize: 11, color: 'var(--text3)', letterSpacing: 1, marginBottom: 8 }}>{t('wallet.balance').toUpperCase()}</div>
-              <div style={{ fontSize: 40, fontWeight: 900, color: '#e4a832', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>${balance.toFixed(2)}</div>
+              <div style={{ fontSize: 40, fontWeight: 900, color: 'var(--blue-bright)', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>${balance.toFixed(2)}</div>
               <div style={{ fontSize: 12, color: 'var(--text3)' }}>≈ {(balance / 42000).toFixed(6)} BTC</div>
               <div style={{ display: 'flex', gap: 10, marginTop: 20, justifyContent: 'center' }}>
-                <button onClick={() => setTab('deposit')} style={{ padding: '10px 28px', borderRadius: 8, background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer' }}>
+                <button onClick={() => setTab('deposit')} style={{ padding: '10px 28px', borderRadius: 8, background: 'var(--blue-grad)', color: '#fff', fontWeight: 800, fontSize: 13, border: 'none', cursor: 'pointer' }}>
                   {t('wallet.deposit')}
                 </button>
                 <button onClick={() => setTab('withdraw')} style={{ padding: '10px 28px', borderRadius: 8, background: 'var(--bg2)', color: 'var(--text3)', fontWeight: 600, fontSize: 13, border: '1px solid var(--border)', cursor: 'pointer' }}>
@@ -166,7 +167,7 @@ export default function Wallet() {
             ) : depositAddr ? (
               <div style={{ maxWidth: 440, margin: '0 auto' }}>
                 <button onClick={() => { setSelectedCoin(null); setDepositAddr(null) }}
-                  style={{ background: 'none', border: 'none', color: '#e4a832', fontSize: 12, cursor: 'pointer', marginBottom: 16, padding: 0 }}>
+                  style={{ background: 'none', border: 'none', color: 'var(--blue-bright)', fontSize: 12, cursor: 'pointer', marginBottom: 16, padding: 0 }}>
                   ← Back to coins
                 </button>
                 <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 24, textAlign: 'center' }}>
@@ -179,11 +180,11 @@ export default function Wallet() {
                       <img src={depositAddr.qr} alt="QR Code" style={{ width: 180, height: 180, display: 'block' }} />
                     </div>
                   )}
-                  <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: 'monospace', wordBreak: 'break-all', color: '#e4a832', marginBottom: 12 }}>
+                  <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12, fontFamily: 'monospace', wordBreak: 'break-all', color: 'var(--blue-bright)', marginBottom: 12 }}>
                     {depositAddr.address}
                   </div>
                   <button onClick={() => { navigator.clipboard.writeText(depositAddr.address); addToast('Address copied!', 'success') }}
-                    style={{ padding: '9px 24px', borderRadius: 8, background: '#e4a832', color: '#000', fontWeight: 800, fontSize: 12, border: 'none', cursor: 'pointer' }}>
+                    style={{ padding: '9px 24px', borderRadius: 8, background: 'var(--blue-grad)', color: '#fff', fontWeight: 800, fontSize: 12, border: 'none', cursor: 'pointer' }}>
                     Copy Address
                   </button>
                   <div style={{ marginTop: 16, fontSize: 11, color: 'var(--text3)', lineHeight: 1.6 }}>
@@ -205,8 +206,8 @@ export default function Wallet() {
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
                     {COINS.map((c) => (
                       <button key={c.symbol} type="button" onClick={() => setWithdrawForm((f) => ({ ...f, coin: c.symbol }))}
-                        style={{ padding: '10px 6px', borderRadius: 8, border: withdrawForm.coin === c.symbol ? '2px solid #e4a832' : '1px solid var(--border)',
-                          background: withdrawForm.coin === c.symbol ? 'rgba(228,168,50,0.1)' : 'var(--bg2)', cursor: 'pointer', textAlign: 'center' }}>
+                        style={{ padding: '10px 6px', borderRadius: 8, border: withdrawForm.coin === c.symbol ? '2px solid var(--blue)' : '1px solid var(--border)',
+                          background: withdrawForm.coin === c.symbol ? 'var(--blue-dim)' : 'var(--bg2)', cursor: 'pointer', textAlign: 'center' }}>
                         <div style={{ fontSize: 18 }}>{c.icon}</div>
                         <div style={{ fontSize: 11, color: 'var(--text)', fontWeight: 600, marginTop: 2 }}>{c.symbol}</div>
                       </button>
@@ -220,11 +221,11 @@ export default function Wallet() {
                       onChange={(e) => setWithdrawForm((f) => ({ ...f, amount: e.target.value }))}
                       style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: '9px 12px', paddingRight: 60, color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
                     <button type="button" onClick={() => setWithdrawForm((f) => ({ ...f, amount: balance.toFixed(2) }))}
-                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: '#e4a832', color: '#000', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
+                      style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'var(--blue-grad)', color: '#fff', border: 'none', borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 800, cursor: 'pointer' }}>
                       MAX
                     </button>
                   </div>
-                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Min: $10.00 · Available: <span style={{ color: '#e4a832', fontWeight: 700 }}>${balance.toFixed(2)}</span></div>
+                  <div style={{ fontSize: 11, color: 'var(--text3)', marginTop: 4 }}>Min: $10.00 · Available: <span style={{ color: 'var(--blue-bright)', fontWeight: 700 }}>${balance.toFixed(2)}</span></div>
                 </div>
                 <div>
                   <label style={{ fontSize: 11, color: 'var(--text3)', display: 'block', marginBottom: 6 }}>{withdrawForm.coin} {t('wallet.address')}</label>
@@ -233,7 +234,7 @@ export default function Wallet() {
                     style={{ width: '100%', background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 7, padding: '9px 12px', color: 'var(--text)', fontSize: 13, outline: 'none', boxSizing: 'border-box' }} />
                 </div>
                 <button type="submit" disabled={withdrawLoading}
-                  style={{ background: '#e4a832', color: '#000', fontWeight: 800, border: 'none', borderRadius: 8, padding: '11px', fontSize: 13, cursor: 'pointer', opacity: withdrawLoading ? 0.7 : 1 }}>
+                  style={{ background: 'var(--blue-grad)', color: '#fff', fontWeight: 800, border: 'none', borderRadius: 8, padding: '11px', fontSize: 13, cursor: 'pointer', opacity: withdrawLoading ? 0.7 : 1 }}>
                   {withdrawLoading ? t('common.loading') : t('wallet.withdraw')}
                 </button>
               </form>
@@ -297,7 +298,7 @@ export default function Wallet() {
                   })}
                   {hasMore && (
                     <button onClick={() => setPage((p) => p + 1)} disabled={txLoading}
-                      style={{ width: '100%', padding: '12px', background: 'none', border: 'none', color: '#e4a832', fontSize: 12, cursor: 'pointer' }}>
+                      style={{ width: '100%', padding: '12px', background: 'none', border: 'none', color: 'var(--blue-bright)', fontSize: 12, cursor: 'pointer' }}>
                       {txLoading ? t('common.loading') : 'Load more'}
                     </button>
                   )}

@@ -4,9 +4,7 @@ import { getPaymentStatus } from '../payments/yookassa'
 import { activateSubscription } from '../payments/activate'
 
 export async function handleCheckPayment(ctx: Context, provider: string, paymentDbId: number) {
-  const payment = paymentRepo.findByProviderId
-    ? db.prepare('SELECT * FROM payments WHERE id=?').get(paymentDbId) as any
-    : null
+  const payment = db.prepare('SELECT * FROM payments WHERE id=?').get(paymentDbId) as any
 
   if (!payment) {
     await ctx.answerCallbackQuery('❌ Платёж не найден')
@@ -18,7 +16,7 @@ export async function handleCheckPayment(ctx: Context, provider: string, payment
     return
   }
 
-  await ctx.answerCallbackQuery('Проверяю...')
+  await ctx.answerCallbackQuery('🔍 Проверяю...')
 
   try {
     let paid = false
@@ -36,7 +34,7 @@ export async function handleCheckPayment(ctx: Context, provider: string, payment
         .text('🔄 Проверить снова', `check:${provider}:${paymentDbId}`)
 
       await ctx.editMessageText(
-        '⏳ Оплата ещё не подтверждена. Попробуй через минуту.',
+        '⏳ Оплата ещё не подтверждена. Подожди минуту и попробуй снова.',
         { reply_markup: kb }
       ).catch(() => {})
     }

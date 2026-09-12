@@ -5,7 +5,9 @@
   "scripts": {
     "dev": "tsx watch src/bot.ts",
     "build": "tsc",
-    "start": "node dist/bot.js"
+    "start": "node dist/bot.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "grammy": "^1.26.0",
@@ -24,6 +26,7 @@
     "@types/uuid": "^10.0.0",
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.1",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.0.0"
   }
 }

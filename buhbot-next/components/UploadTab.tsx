@@ -18,10 +18,18 @@ interface CsvPreview {
   file: PendingFile;
 }
 
+interface AutoParsedTx {
+  date: string;
+  category: string;
+  amount: number;
+  note: string;
+}
+
 interface PdfPreview {
   text: string;
   pages: number;
   file: PendingFile;
+  parsed: AutoParsedTx[] | null; // null = unknown format, manual entry needed
 }
 
 interface Props {
@@ -101,11 +109,26 @@ export default function UploadTab({ pendingFiles, setPendingFiles, onAddTransact
     try {
       const fd = new FormData();
       fd.append("file", file);
+      fd.append("source", source);
+      fd.append("statementType", statementType);
       const res = await fetch("/api/parse-pdf", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error);
-      setPdfPreview({ ...data, file: pf });
-      setPdfRows([{ date: new Date().toISOString().slice(0, 10), source, statementType, category: "other", amount: 0, note: "" }]);
+      const preview: PdfPreview = { text: data.text, pages: data.pages, file: pf, parsed: data.parsed ?? null };
+      setPdfPreview(preview);
+      if (data.parsed && data.parsed.length > 0) {
+        // Pre-fill rows from auto-parse
+        setPdfRows(data.parsed.map((p: AutoParsedTx) => ({
+          date: p.date.slice(0, 10),
+          source,
+          statementType,
+          category: p.category,
+          amount: p.amount,
+          note: p.note,
+        })));
+      } else {
+        setPdfRows([{ date: new Date().toISOString().slice(0, 10), source, statementType, category: "other", amount: 0, note: "" }]);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -256,6 +279,8 @@ export default function UploadTab({ pendingFiles, setPendingFiles, onAddTransact
           preview={pdfPreview}
           rows={pdfRows}
           setRows={setPdfRows}
+          source={source}
+          statementType={statementType}
           onConfirm={confirmPdf}
           onCancel={() => { setPdfPreview(null); setPdfRows([]); }}
         />
@@ -330,10 +355,12 @@ function CsvPreviewModal({ preview, mapping, setMapping, onConfirm, onCancel }: 
   );
 }
 
-function PdfPreviewPanel({ preview, rows, setRows, onConfirm, onCancel }: {
+function PdfPreviewPanel({ preview, rows, setRows, source, statementType, onConfirm, onCancel }: {
   preview: PdfPreview;
   rows: Partial<PendingTransaction>[];
   setRows: (r: Partial<PendingTransaction>[]) => void;
+  source: SourceKey;
+  statementType: string;
   onConfirm: () => void;
   onCancel: () => void;
 }) {
@@ -342,20 +369,40 @@ function PdfPreviewPanel({ preview, rows, setRows, onConfirm, onCancel }: {
     setRows(updated);
   }
   function addRow() {
-    setRows([...rows, { date: new Date().toISOString().slice(0, 10), source: preview.file.source, statementType: preview.file.statementType, category: "other", amount: 0, note: "" }]);
+    setRows([...rows, { date: new Date().toISOString().slice(0, 10), source, statementType, category: "other", amount: 0, note: "" }]);
   }
   function removeRow(i: number) {
     setRows(rows.filter((_, idx) => idx !== i));
   }
+
+  const isAutoParsed = preview.parsed !== null;
 
   return (
     <div className="surface" style={{ padding: 20 }}>
       <h3 style={{ fontFamily: "Manrope, sans-serif", fontWeight: 800, fontSize: 16, marginBottom: 8 }}>
         PDF: {preview.file.name} ({preview.pages} стр.)
       </h3>
-      <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 12 }}>
-        Текст из PDF показан ниже. Добавьте операции вручную, ориентируясь на него.
-      </p>
+
+      {isAutoParsed ? (
+        <div style={{
+          background: "var(--accent-light)",
+          border: "1px solid var(--accent)",
+          borderRadius: 8,
+          padding: "10px 14px",
+          marginBottom: 14,
+          fontSize: 13,
+          color: "var(--accent)",
+          fontFamily: "Manrope, sans-serif",
+          fontWeight: 600,
+        }}>
+          ✓ Формат распознан автоматически — извлечено {preview.parsed!.length} операций.
+          Проверьте и при необходимости отредактируйте перед добавлением.
+        </div>
+      ) : (
+        <p style={{ fontSize: 13, color: "var(--text2)", marginBottom: 12 }}>
+          Текст из PDF показан ниже. Добавьте операции вручную, ориентируясь на него.
+        </p>
+      )}
       <textarea
         readOnly
         value={preview.text}

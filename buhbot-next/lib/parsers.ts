@@ -36,11 +36,17 @@ function parseRuAmount(s: string): number {
 }
 
 function parseDate(s: string): string {
-  // "14.09.2026" or "2026-09-07"
+  // "14.09.2026" → full 4-digit year
   if (/^\d{2}\.\d{2}\.\d{4}/.test(s)) {
     const [d, m, y] = s.slice(0, 10).split(".");
     return new Date(`${y}-${m}-${d}`).toISOString();
   }
+  // "14.09.26" → 2-digit year (ABCEX format), assume 2000+
+  if (/^\d{2}\.\d{2}\.\d{2}$/.test(s.slice(0, 8))) {
+    const [d, m, y] = s.slice(0, 8).split(".");
+    return new Date(`20${y}-${m}-${d}`).toISOString();
+  }
+  // "2026-09-07"
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
     return new Date(s.slice(0, 10)).toISOString();
   }
@@ -256,6 +262,127 @@ export function parseCifra(text: string): ParsedTransaction[] {
 }
 
 // ---------------------------------------------------------------------------
+// ABCEX – Выписка по ордерам (order execution report)
+// Columns (tab-separated, dates may have embedded newlines):
+//   Создан | Завершен | Номер заявки | Пара | Тип | Направление |
+//   Размер заявки | Ср. цена | Отдано | Получено* | Комиссия | Статус
+// "Получено" is already net of commission; commission is a separate column.
+// ---------------------------------------------------------------------------
+
+export function parseAbcexOrders(text: string): ParsedTransaction[] {
+  const results: ParsedTransaction[] = [];
+
+  // Flatten newlines within cells to spaces for easier regex matching
+  const flat = text.replace(/\n/g, " ").replace(/ {2,}/g, " ");
+
+  // Each completed row: two dates (DD.MM.YY HH:MM), order id, pair, type,
+  // direction, size USDT, avg_price, given USDT, received RUB, commission RUB, Заполнена
+  const rowRe =
+    /(\d{2}\.\d{2}\.\d{2})\s+(\d{2}:\d{2})\s+\d{2}\.\d{2}\.\d{2}\s+\d{2}:\d{2}\s+\d+\s+(USDTRUB|RUBUSDT)\s+\S+\s+(Продать|Купить)\s+[\d.,]+\s*USDT\s+[\d.,]+\s+[\d.,]+\s*USDT\s+([\d.,]+)\s*RUB\s+([\d.,]+)\s*RUB\s+Заполнена/g;
+
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(flat)) !== null) {
+    const dateStr = parseDate(`${m[1]}`);
+    const direction = m[4];
+    const receivedRub = parseFloat(m[5].replace(",", "."));
+    const commissionRub = parseFloat(m[6].replace(",", "."));
+
+    if (direction === "Продать" && receivedRub > 0) {
+      results.push({
+        date: dateStr,
+        category: "sale",
+        amount: receivedRub,
+        note: "Продажа USDT на ABCEX",
+      });
+      if (commissionRub > 0) {
+        results.push({
+          date: dateStr,
+          category: "sale_fee",
+          amount: commissionRub,
+          note: "Комиссия ABCEX за продажу",
+        });
+      }
+    } else if (direction === "Купить" && receivedRub > 0) {
+      results.push({
+        date: dateStr,
+        category: "purchase",
+        amount: receivedRub,
+        note: "Покупка USDT на ABCEX",
+      });
+      if (commissionRub > 0) {
+        results.push({
+          date: dateStr,
+          category: "purchase_fee",
+          amount: commissionRub,
+          note: "Комиссия ABCEX за покупку",
+        });
+      }
+    }
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// ABCEX – Выписка фиатных операций (RUB withdrawals/deposits, reference only)
+// Columns: Дата и время | Направление | Валюта | Метод | Сумма | Номер заявки
+// ---------------------------------------------------------------------------
+
+export function parseAbcexFiat(text: string): ParsedTransaction[] {
+  const results: ParsedTransaction[] = [];
+  const flat = text.replace(/\n/g, " ").replace(/ {2,}/g, " ");
+
+  // DD.MM.YY HH:MM \t Вывод/Пополнение \t RUB \t Наличные \t amount \t order_id
+  const rowRe =
+    /(\d{2}\.\d{2}\.\d{2})\s+(\d{2}:\d{2})\s+(Вывод|Пополнение)\s+RUB\s+\S+\s+([\d]+)\s+\d+/g;
+
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(flat)) !== null) {
+    const dateStr = parseDate(m[1]);
+    const direction = m[3];
+    const amount = parseFloat(m[4]);
+
+    results.push({
+      date: dateStr,
+      category: direction === "Вывод" ? "withdrawal_info" : "deposit_info",
+      amount,
+      note: `ABCEX фиат ${direction === "Вывод" ? "вывод" : "пополнение"} RUB`,
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// ABCEX – Выписка криптовалютных операций (USDT on-chain, reference only)
+// Columns: Дата и время | Направление | Валюта | Метод | Сеть | Сумма | Адрес | TXID
+// ---------------------------------------------------------------------------
+
+export function parseAbcexCrypto(text: string): ParsedTransaction[] {
+  const results: ParsedTransaction[] = [];
+  const flat = text.replace(/\n/g, " ").replace(/ {2,}/g, " ");
+
+  const rowRe =
+    /(\d{2}\.\d{2}\.\d{2})\s+(\d{2}:\d{2})\s+(Пополнение|Вывод)\s+USDT\s+\S+\s+\S+\s+([\d.,]+)\s+\S+\s+\S+/g;
+
+  let m: RegExpExecArray | null;
+  while ((m = rowRe.exec(flat)) !== null) {
+    const dateStr = parseDate(m[1]);
+    const direction = m[3];
+    const amount = parseFloat(m[4].replace(",", "."));
+
+    results.push({
+      date: dateStr,
+      category: direction === "Пополнение" ? "deposit_info" : "withdrawal_info",
+      amount,
+      note: `ABCEX крипто ${direction === "Пополнение" ? "пополнение" : "вывод"} USDT`,
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
 // Auto-detect source from text and dispatch to the right parser
 // ---------------------------------------------------------------------------
 
@@ -280,7 +407,7 @@ export function autoParseStatement(
   // Cifra Markets
   if (
     source === "cifra" ||
-    t.includes("цифра") ||
+    t.includes("цифра маркетс") ||
     t.includes("cifra") ||
     t.includes("отчет депозитария") ||
     t.includes("отчёт депозитария") ||
@@ -288,6 +415,24 @@ export function autoParseStatement(
     t.includes("отчёт брокера")
   ) {
     return parseCifra(text);
+  }
+
+  // ABCEX – orders report (main income source from ABCEX)
+  if (
+    source === "abcex" ||
+    (t.includes("abcex") && t.includes("выписка по ордерам"))
+  ) {
+    return parseAbcexOrders(text);
+  }
+
+  // ABCEX – fiat operations (RUB cash withdrawals, reference)
+  if (t.includes("abcex") && t.includes("выписка фиатных операций")) {
+    return parseAbcexFiat(text);
+  }
+
+  // ABCEX – crypto operations (USDT deposits, reference)
+  if (t.includes("abcex") && t.includes("выписка криптовалютных операций")) {
+    return parseAbcexCrypto(text);
   }
 
   return null; // Unknown format – fall back to manual entry
